@@ -35,6 +35,22 @@ export class Game extends CustomScene {
     private coinsEarned: number = 0;
     private displayedCoins: number = 0;
 
+    // Lives System
+    private readonly MAX_LIVES = 3;
+    private lives: number = 3;
+    private heartIcons: Phaser.GameObjects.Text[] = [];
+
+    // Timer System
+    private readonly INITIAL_TIME_MS = 10000; // 10 Seconds starting time
+    private readonly MIN_TIME_MS = 5000;      // 5 Seconds max speed floor
+    private readonly TIME_DECREMENT_MS = 500; // Decreases by 0.5s each match
+    private currentRoundTimeMs: number = 10000;
+
+    private timerEvent?: Phaser.Time.TimerEvent;
+    private timerBarBg!: Phaser.GameObjects.Graphics;
+    private timerBarFill!: Phaser.GameObjects.Graphics;
+    private readonly TIMER_BAR_HEIGHT = 16;
+
     constructor() {
         super('Game');
     }
@@ -44,13 +60,23 @@ export class Game extends CustomScene {
         this.camera = this.cameras.main;
         this.camera.setBackgroundColor(0x201338);
 
-        // Score & Title UI
+        // Reset state on scene start
+        this.lives = this.MAX_LIVES;
+        this.coinsEarned = 0;
+        this.displayedCoins = 0;
+        this.heartIcons = [];
+        this.currentRoundTimeMs = this.INITIAL_TIME_MS;
+
+        // Score, Title & Lives UI
         this.createScoreUI();
+
+        // Timer Bar UI
+        this.createTimerBarUI();
 
         // Status / Prompt Text
         this.statusText = this.add.text(
             this.scale.width / 2, 
-            180, 
+            185, 
             'Select 3 matching tiles!', 
             {
                 fontFamily: 'Arial',
@@ -60,31 +86,131 @@ export class Game extends CustomScene {
             }
         ).setOrigin(0.5);
 
-        // Build Initial 3x3 Grid
+        // Build Initial 3x3 Grid & Start Round
         this.createGrid();
+        this.startRoundTimer();
+    }
+
+    update() {
+        this.updateTimerBar();
     }
 
     private createScoreUI() {
         const centerX = this.scale.width / 2;
 
         // Title Header Banner
-        this.add.text(centerX, 50, 'SCRAMBLY REWARDS', {
+        this.add.text(centerX, 40, 'SCRAMBLY REWARDS', {
             fontFamily: 'Arial Black',
             fontSize: '22px',
             color: '#F58324'
         }).setOrigin(0.5);
 
         // Coin Score Background Box
-        this.add.rectangle(centerX, 110, 220, 50, 0x2D1B4E, 0.9)
+        this.add.rectangle(centerX - 60, 100, 150, 45, 0x2D1B4E, 0.9)
             .setStrokeStyle(2, 0xF58324);
 
         // Coin Counter Text
-        this.scoreText = this.add.text(centerX, 110, 'Coins: 0', {
+        this.scoreText = this.add.text(centerX - 60, 100, 'Coins: 0', {
             fontFamily: 'Arial',
-            fontSize: '22px',
+            fontSize: '18px',
             color: '#FFD700',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+
+        // Lives Indicator Container Box
+        this.add.rectangle(centerX + 85, 100, 110, 45, 0x2D1B4E, 0.9)
+            .setStrokeStyle(2, 0xE74C3C);
+
+        // Render Lives Hearts
+        const heartStartX = centerX + 55;
+        for (let i = 0; i < this.MAX_LIVES; i++) {
+            const heart = this.add.text(heartStartX + (i * 30), 100, '❤️', {
+                fontSize: '20px'
+            }).setOrigin(0.5);
+            
+            this.heartIcons.push(heart);
+        }
+    }
+
+    private createTimerBarUI() {
+        const barWidth = this.scale.width - 40;
+        const x = 20;
+        const y = this.scale.height - 35;
+
+        // Timer Background Outer Frame
+        this.timerBarBg = this.add.graphics();
+        this.timerBarBg.fillStyle(0x1A0F2E, 0.9);
+        this.timerBarBg.fillRect(x - 2, y - 2, barWidth + 4, this.TIMER_BAR_HEIGHT + 4);
+        this.timerBarBg.lineStyle(2, 0x5C3B8B, 1);
+        this.timerBarBg.strokeRect(x - 2, y - 2, barWidth + 4, this.TIMER_BAR_HEIGHT + 4);
+
+        // Dynamic Timer Fill Graphic
+        this.timerBarFill = this.add.graphics();
+    }
+
+    private startRoundTimer() {
+        if (this.timerEvent) {
+            this.timerEvent.remove();
+        }
+
+        this.timerEvent = this.time.delayedCall(
+            this.currentRoundTimeMs,
+            this.handleTimeOut,
+            [],
+            this
+        );
+    }
+
+    private stopRoundTimer() {
+        if (this.timerEvent) {
+            this.timerEvent.remove();
+            this.timerEvent = undefined;
+        }
+    }
+
+    private updateTimerBar() {
+        if (!this.timerEvent || this.timerEvent.paused) {
+            return;
+        }
+
+        const barWidth = this.scale.width - 40;
+        const x = 20;
+        const y = this.scale.height - 35;
+
+        // Calculate progress (1.0 -> full, 0.0 -> empty)
+        const progress = Math.max(0, 1 - this.timerEvent.getProgress());
+        const currentBarWidth = barWidth * progress;
+
+        this.timerBarFill.clear();
+
+        // Color shifts from Green -> Yellow -> Red as time decreases
+        let barColor = 0x2ECC71; // Green
+        if (progress < 0.25) {
+            barColor = 0xE74C3C; // Red
+        } else if (progress < 0.5) {
+            barColor = 0xF1C40F; // Yellow
+        }
+
+        this.timerBarFill.fillStyle(barColor, 1);
+        this.timerBarFill.fillRect(x, y, currentBarWidth, this.TIMER_BAR_HEIGHT);
+    }
+
+    private handleTimeOut() {
+        if (this.isProcessing) return;
+
+        this.isProcessing = true;
+        this.statusText.setText('Time Out! Lost 1 Life ⏰💔');
+        this.loseLife();
+
+        if (this.lives > 0) {
+            this.time.delayedCall(500, () => {
+                this.resetFullGrid();
+            });
+        } else {
+            this.time.delayedCall(800, () => {
+                this.triggerGameOver();
+            });
+        }
     }
 
     private getGridOrigins() {
@@ -92,7 +218,7 @@ export class Game extends CustomScene {
         const gridHeight = (this.GRID_ROWS * this.TILE_SIZE) + ((this.GRID_ROWS - 1) * this.TILE_SPACING);
         
         const startX = (this.scale.width - gridWidth) / 2 + (this.TILE_SIZE / 2);
-        const startY = (this.scale.height - gridHeight) / 2 + (this.TILE_SIZE / 2) + 40;
+        const startY = (this.scale.height - gridHeight) / 2 + (this.TILE_SIZE / 2) + 20;
 
         return { startX, startY };
     }
@@ -134,7 +260,6 @@ export class Game extends CustomScene {
 
         this.grid[row][col] = tileData;
 
-        // Optional pop-in entrance animation for grid refresh
         if (animate) {
             tileRect.setScale(0);
             this.tweens.add({
@@ -142,7 +267,7 @@ export class Game extends CustomScene {
                 scaleX: 1,
                 scaleY: 1,
                 duration: 200,
-                delay: (row * 3 + col) * 30 // Staggered pop-in
+                delay: (row * 3 + col) * 30
             });
         }
     }
@@ -172,6 +297,7 @@ export class Game extends CustomScene {
 
     private checkMatch() {
         this.isProcessing = true;
+        this.stopRoundTimer();
 
         const [first, second, third] = this.selectedTiles;
         const isMatch = (first.type === second.type) && (second.type === third.type);
@@ -180,7 +306,13 @@ export class Game extends CustomScene {
             this.statusText.setText('Match Found! +100 Coins');
             this.addCoins(100);
 
-            // Match feedback animation (scale up & bright pop)
+            // Speed up round duration for the next round (down to min limit of 5s)
+            this.currentRoundTimeMs = Math.max(
+                this.MIN_TIME_MS, 
+                this.currentRoundTimeMs - this.TIME_DECREMENT_MS
+            );
+
+            // Match feedback animation
             this.selectedTiles.forEach(tile => {
                 this.tweens.add({
                     targets: [tile.gameObject, tile.border],
@@ -191,12 +323,13 @@ export class Game extends CustomScene {
                 });
             });
 
-            // Refresh full grid after match sequence
+            // Refresh grid after match sequence
             this.time.delayedCall(450, () => {
                 this.resetFullGrid();
             });
         } else {
-            this.statusText.setText('No Match! Try again.');
+            this.statusText.setText('No Match! Lost 1 Life 💔');
+            this.loseLife();
 
             // Shake tiles feedback
             this.selectedTiles.forEach(tile => {
@@ -209,18 +342,53 @@ export class Game extends CustomScene {
                 });
             });
 
-            // Refresh full grid after failure sequence
-            this.time.delayedCall(450, () => {
-                this.resetFullGrid();
-            });
+            // Check if game over or refresh grid
+            if (this.lives > 0) {
+                this.time.delayedCall(500, () => {
+                    this.resetFullGrid();
+                });
+            } else {
+                this.time.delayedCall(800, () => {
+                    this.triggerGameOver();
+                });
+            }
         }
+    }
+
+    private loseLife() {
+        if (this.lives <= 0) return;
+
+        this.lives--;
+        const lostHeartIndex = this.lives;
+        const targetHeart = this.heartIcons[lostHeartIndex];
+
+        if (targetHeart) {
+            // Animate heart losing effect & switch to empty heart icon
+            this.tweens.add({
+                targets: targetHeart,
+                scaleX: 1.5,
+                scaleY: 1.5,
+                duration: 150,
+                yoyo: true,
+                onYoyo: () => {
+                    targetHeart.setText('🖤');
+                }
+            });
+
+            // Camera shake effect on life loss
+            this.cameras.main.shake(200, 0.005);
+        }
+    }
+
+    private triggerGameOver() {
+        this.stopRoundTimer();
+        this.scene.start('GameOver', { score: this.coinsEarned });
     }
 
     private resetFullGrid() {
         let destroyedCount = 0;
         const totalTiles = this.GRID_ROWS * this.GRID_COLS;
 
-        // Shrink and destroy all existing tiles on the board
         for (let row = 0; row < this.GRID_ROWS; row++) {
             for (let col = 0; col < this.GRID_COLS; col++) {
                 const tile = this.grid[row][col];
@@ -236,7 +404,6 @@ export class Game extends CustomScene {
                             tile.border.destroy();
                             destroyedCount++;
 
-                            // Once all tiles are destroyed, spawn the new grid
                             if (destroyedCount === totalTiles) {
                                 this.selectedTiles = [];
                                 this.createGridAnimated();
@@ -262,10 +429,10 @@ export class Game extends CustomScene {
             }
         }
 
-        // Reset state & update prompt
         this.time.delayedCall(300, () => {
             this.isProcessing = false;
             this.statusText.setText('Select 3 matching tiles!');
+            this.startRoundTimer();
         });
     }
 
