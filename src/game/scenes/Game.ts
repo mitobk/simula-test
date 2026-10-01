@@ -1,9 +1,24 @@
 import Phaser, { Math as PhaserMath } from 'phaser';
 import { CustomScene } from '../utils/CustomScene';
 
+// Brand Palette Constants matching official spec
+const COLORS = {
+    ORANGE: 0xF58324,
+    ORANGE_DARK: 0xD96E14,
+    PURPLE: 0x7845D8,
+    PURPLE_DARK: 0x5C3B8B,
+    DEEP_INK: 0x201338,
+    WARM_WHITE: 0xFFF6E8,
+    CARD_BG: 0x2A1A45,
+    ACCENT_GOLD: 0xFFD700,
+    RED_ACCENT: 0xE74C3C,
+    GREEN_ACCENT: 0x2ECC71
+};
+
 interface TileData {
-    gameObject: Phaser.GameObjects.Rectangle;
-    border: Phaser.GameObjects.Rectangle;
+    gameObject: Phaser.GameObjects.Container;
+    bgGfx: Phaser.GameObjects.Graphics;
+    borderGfx: Phaser.GameObjects.Graphics;
     type: number;
     row: number;
     col: number;
@@ -15,14 +30,14 @@ export class Game extends CustomScene {
     // Grid configuration
     private readonly GRID_ROWS = 3;
     private readonly GRID_COLS = 3;
-    private readonly TILE_SIZE = 90;
-    private readonly TILE_SPACING = 15;
+    private readonly TILE_SIZE = 86;
+    private readonly TILE_SPACING = 16;
 
-    // Available placeholder tile types (colors)
+    // Styled Tile Palette
     private readonly TILE_TYPES = [
-        { id: 0, color: 0xFF5733, name: 'Red' },
-        { id: 1, color: 0x33FF57, name: 'Green' },
-        { id: 2, color: 0x3357FF, name: 'Blue' }
+        { id: 0, color: 0xF58324, border: 0xFFD700, icon: '⚡' }, // Scrambly Orange / Gold
+        { id: 1, color: 0x7845D8, border: 0xB58BFF, icon: '💎' }, // Deep Purple / Soft Lavender
+        { id: 2, color: 0x2ECC71, border: 0xA3E4D7, icon: '🌟' }  // Vibrant Emerald / Mint
     ];
 
     private grid: (TileData | null)[][] = [];
@@ -49,7 +64,7 @@ export class Game extends CustomScene {
     private timerEvent?: Phaser.Time.TimerEvent;
     private timerBarBg!: Phaser.GameObjects.Graphics;
     private timerBarFill!: Phaser.GameObjects.Graphics;
-    private readonly TIMER_BAR_HEIGHT = 16;
+    private readonly TIMER_BAR_HEIGHT = 14;
 
     constructor() {
         super('Game');
@@ -58,7 +73,7 @@ export class Game extends CustomScene {
     create() {
         super.create();
         this.camera = this.cameras.main;
-        this.camera.setBackgroundColor(0x201338);
+        this.camera.setBackgroundColor(COLORS.DEEP_INK);
 
         // Reset state on scene start
         this.lives = this.MAX_LIVES;
@@ -73,16 +88,27 @@ export class Game extends CustomScene {
         // Timer Bar UI
         this.createTimerBarUI();
 
-        // Status / Prompt Text
+        // Status / Prompt Text Box
+        const statusY = 185;
+        const centerX = Math.floor(this.scale.width / 2);
+
+        const statusBox = this.add.graphics();
+        statusBox.fillStyle(COLORS.CARD_BG, 0.7);
+        statusBox.fillRoundedRect(centerX - 140, statusY - 18, 280, 36, 12);
+        statusBox.lineStyle(1, COLORS.PURPLE, 0.6);
+        statusBox.strokeRoundedRect(centerX - 140, statusY - 18, 280, 36, 12);
+
         this.statusText = this.add.text(
-            this.scale.width / 2, 
-            185, 
+            centerX, 
+            statusY, 
             'Select 3 matching tiles!', 
             {
                 fontFamily: 'Arial',
-                fontSize: '18px',
+                fontSize: '15px',
                 color: '#FFF6E8',
-                align: 'center'
+                fontStyle: 'bold',
+                align: 'center',
+                resolution: 2
             }
         ).setOrigin(0.5);
 
@@ -96,36 +122,54 @@ export class Game extends CustomScene {
     }
 
     private createScoreUI() {
-        const centerX = this.scale.width / 2;
+        const centerX = Math.floor(this.scale.width / 2);
 
         // Title Header Banner
-        this.add.text(centerX, 40, 'SCRAMBLY REWARDS', {
+        this.add.text(centerX, 38, 'SCRAMBLY REWARDS', {
             fontFamily: 'Arial Black',
             fontSize: '22px',
-            color: '#F58324'
+            color: '#F58324',
+            stroke: '#201338',
+            strokeThickness: 5,
+            resolution: 2
         }).setOrigin(0.5);
 
-        // Coin Score Background Box
-        this.add.rectangle(centerX - 60, 100, 150, 45, 0x2D1B4E, 0.9)
-            .setStrokeStyle(2, 0xF58324);
+        // Coin Score Background Card
+        const coinCard = this.add.graphics();
+        coinCard.fillStyle(COLORS.CARD_BG, 0.95);
+        coinCard.fillRoundedRect(centerX - 135, 75, 120, 44, 12);
+        coinCard.lineStyle(2, COLORS.ORANGE, 0.8);
+        coinCard.strokeRoundedRect(centerX - 135, 75, 120, 44, 12);
+
+        // Coin Emoji Text
+        this.add.text(centerX - 120, 97, '🪙', { 
+            fontSize: '18px',
+            padding: { top: 6, bottom: 6, left: 2, right: 2 },
+            resolution: 2
+        }).setOrigin(0.5);
 
         // Coin Counter Text
-        this.scoreText = this.add.text(centerX - 60, 100, 'Coins: 0', {
-            fontFamily: 'Arial',
-            fontSize: '18px',
+        this.scoreText = this.add.text(centerX - 100, 97, '0', {
+            fontFamily: 'Arial Black',
+            fontSize: '17px',
             color: '#FFD700',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
+            resolution: 2
+        }).setOrigin(0, 0.5);
 
         // Lives Indicator Container Box
-        this.add.rectangle(centerX + 85, 100, 110, 45, 0x2D1B4E, 0.9)
-            .setStrokeStyle(2, 0xE74C3C);
+        const livesCard = this.add.graphics();
+        livesCard.fillStyle(COLORS.CARD_BG, 0.95);
+        livesCard.fillRoundedRect(centerX + 15, 75, 120, 44, 12);
+        livesCard.lineStyle(2, COLORS.RED_ACCENT, 0.8);
+        livesCard.strokeRoundedRect(centerX + 15, 75, 120, 44, 12);
 
         // Render Lives Hearts
-        const heartStartX = centerX + 55;
+        const heartStartX = centerX + 38;
         for (let i = 0; i < this.MAX_LIVES; i++) {
-            const heart = this.add.text(heartStartX + (i * 30), 100, '❤️', {
-                fontSize: '20px'
+            const heart = this.add.text(heartStartX + (i * 28), 97, '❤️', {
+                fontSize: '18px',
+                padding: { top: 6, bottom: 6, left: 2, right: 2 },
+                resolution: 2
             }).setOrigin(0.5);
             
             this.heartIcons.push(heart);
@@ -139,10 +183,10 @@ export class Game extends CustomScene {
 
         // Timer Background Outer Frame
         this.timerBarBg = this.add.graphics();
-        this.timerBarBg.fillStyle(0x1A0F2E, 0.9);
-        this.timerBarBg.fillRect(x - 2, y - 2, barWidth + 4, this.TIMER_BAR_HEIGHT + 4);
-        this.timerBarBg.lineStyle(2, 0x5C3B8B, 1);
-        this.timerBarBg.strokeRect(x - 2, y - 2, barWidth + 4, this.TIMER_BAR_HEIGHT + 4);
+        this.timerBarBg.fillStyle(0x140B24, 0.9);
+        this.timerBarBg.fillRoundedRect(x - 2, y - 2, barWidth + 4, this.TIMER_BAR_HEIGHT + 4, 8);
+        this.timerBarBg.lineStyle(2, COLORS.PURPLE_DARK, 0.9);
+        this.timerBarBg.strokeRoundedRect(x - 2, y - 2, barWidth + 4, this.TIMER_BAR_HEIGHT + 4, 8);
 
         // Dynamic Timer Fill Graphic
         this.timerBarFill = this.add.graphics();
@@ -179,20 +223,22 @@ export class Game extends CustomScene {
 
         // Calculate progress (1.0 -> full, 0.0 -> empty)
         const progress = Math.max(0, 1 - this.timerEvent.getProgress());
-        const currentBarWidth = barWidth * progress;
+        const currentBarWidth = Math.max(0, barWidth * progress);
 
         this.timerBarFill.clear();
 
-        // Color shifts from Green -> Yellow -> Red as time decreases
-        let barColor = 0x2ECC71; // Green
+        // Dynamic Color Shift: Green -> Yellow -> Red
+        let barColor = COLORS.GREEN_ACCENT;
         if (progress < 0.25) {
-            barColor = 0xE74C3C; // Red
+            barColor = COLORS.RED_ACCENT;
         } else if (progress < 0.5) {
-            barColor = 0xF1C40F; // Yellow
+            barColor = COLORS.ACCENT_GOLD;
         }
 
-        this.timerBarFill.fillStyle(barColor, 1);
-        this.timerBarFill.fillRect(x, y, currentBarWidth, this.TIMER_BAR_HEIGHT);
+        if (currentBarWidth > 0) {
+            this.timerBarFill.fillStyle(barColor, 1);
+            this.timerBarFill.fillRoundedRect(x, y, currentBarWidth, this.TIMER_BAR_HEIGHT, 6);
+        }
     }
 
     private handleTimeOut() {
@@ -217,8 +263,8 @@ export class Game extends CustomScene {
         const gridWidth = (this.GRID_COLS * this.TILE_SIZE) + ((this.GRID_COLS - 1) * this.TILE_SPACING);
         const gridHeight = (this.GRID_ROWS * this.TILE_SIZE) + ((this.GRID_ROWS - 1) * this.TILE_SPACING);
         
-        const startX = (this.scale.width - gridWidth) / 2 + (this.TILE_SIZE / 2);
-        const startY = (this.scale.height - gridHeight) / 2 + (this.TILE_SIZE / 2) + 20;
+        const startX = Math.floor((this.scale.width - gridWidth) / 2 + (this.TILE_SIZE / 2));
+        const startY = Math.floor((this.scale.height - gridHeight) / 2 + (this.TILE_SIZE / 2) + 25);
 
         return { startX, startY };
     }
@@ -241,29 +287,43 @@ export class Game extends CustomScene {
     private spawnTile(row: number, col: number, x: number, y: number, animate: boolean = false) {
         const randomType = PhaserMath.RND.pick(this.TILE_TYPES);
 
-        const border = this.add.rectangle(x, y, this.TILE_SIZE + 6, this.TILE_SIZE + 6)
-            .setStrokeStyle(4, 0xFFFF00)
-            .setVisible(false);
+        // Container holding tile components
+        const container = this.add.container(x, y);
+        container.setSize(this.TILE_SIZE, this.TILE_SIZE);
 
-        const tileRect = this.add.rectangle(x, y, this.TILE_SIZE, this.TILE_SIZE, randomType.color)
-            .setInteractive({ useHandCursor: true });
+        const borderGfx = this.add.graphics();
+        const bgGfx = this.add.graphics();
+
+        // Draw tile initial state
+        this.drawTileGraphic(bgGfx, borderGfx, randomType, false);
+
+        // Tile Center Icon
+        const iconText = this.add.text(0, 0, randomType.icon, {
+            fontSize: '32px',
+            resolution: 2
+        }).setOrigin(0.5);
+
+        container.add([borderGfx, bgGfx, iconText]);
+
+        container.setInteractive({ useHandCursor: true });
 
         const tileData: TileData = {
-            gameObject: tileRect,
-            border: border,
+            gameObject: container,
+            bgGfx: bgGfx,
+            borderGfx: borderGfx,
             type: randomType.id,
             row: row,
             col: col
         };
 
-        tileRect.on('pointerdown', () => this.handleTileClick(tileData));
+        container.on('pointerdown', () => this.handleTileClick(tileData));
 
         this.grid[row][col] = tileData;
 
         if (animate) {
-            tileRect.setScale(0);
+            container.setScale(0);
             this.tweens.add({
-                targets: tileRect,
+                targets: container,
                 scaleX: 1,
                 scaleY: 1,
                 duration: 200,
@@ -272,18 +332,51 @@ export class Game extends CustomScene {
         }
     }
 
+    private drawTileGraphic(bgGfx: Phaser.GameObjects.Graphics, borderGfx: Phaser.GameObjects.Graphics, tileTypeConfig: typeof this.TILE_TYPES[0], isSelected: boolean) {
+        bgGfx.clear();
+        borderGfx.clear();
+
+        const half = this.TILE_SIZE / 2;
+
+        if (isSelected) {
+            // Glowing Highlight Selection Border
+            borderGfx.fillStyle(COLORS.ACCENT_GOLD, 0.4);
+            borderGfx.fillRoundedRect(-half - 5, -half - 5, this.TILE_SIZE + 10, this.TILE_SIZE + 10, 18);
+            borderGfx.lineStyle(3, COLORS.ACCENT_GOLD, 1);
+            borderGfx.strokeRoundedRect(-half - 5, -half - 5, this.TILE_SIZE + 10, this.TILE_SIZE + 10, 18);
+        }
+
+        // Tile Drop Shadow
+        bgGfx.fillStyle(0x000000, 0.35);
+        bgGfx.fillRoundedRect(-half + 2, -half + 3, this.TILE_SIZE, this.TILE_SIZE, 14);
+
+        // Tile Base Fill
+        bgGfx.fillStyle(tileTypeConfig.color, 1);
+        bgGfx.fillRoundedRect(-half, -half, this.TILE_SIZE, this.TILE_SIZE, 14);
+
+        // Tile Top Gloss Highlight
+        bgGfx.fillStyle(0xFFFFFF, 0.22);
+        bgGfx.fillRoundedRect(-half + 4, -half + 3, this.TILE_SIZE - 8, (this.TILE_SIZE - 6) / 2, { tl: 11, tr: 11, bl: 3, br: 3 });
+
+        // Outer Tile Rim
+        bgGfx.lineStyle(2, tileTypeConfig.border, 0.85);
+        bgGfx.strokeRoundedRect(-half, -half, this.TILE_SIZE, this.TILE_SIZE, 14);
+    }
+
     private handleTileClick(tile: TileData) {
         if (this.isProcessing || this.selectedTiles.includes(tile)) {
             return;
         }
 
         this.selectedTiles.push(tile);
-        tile.border.setVisible(true);
+
+        const tileConfig = this.TILE_TYPES.find(t => t.id === tile.type)!;
+        this.drawTileGraphic(tile.bgGfx, tile.borderGfx, tileConfig, true);
 
         this.tweens.add({
-            targets: [tile.gameObject, tile.border],
-            scaleX: 1.1,
-            scaleY: 1.1,
+            targets: tile.gameObject,
+            scaleX: 1.08,
+            scaleY: 1.08,
             duration: 100,
             yoyo: true
         });
@@ -306,7 +399,7 @@ export class Game extends CustomScene {
             this.statusText.setText('Match Found! +100 Coins');
             this.addCoins(100);
 
-            // Speed up round duration for the next round (down to min limit of 5s)
+            // Speed up round duration for next round (down to min limit of 5s)
             this.currentRoundTimeMs = Math.max(
                 this.MIN_TIME_MS, 
                 this.currentRoundTimeMs - this.TIME_DECREMENT_MS
@@ -315,7 +408,7 @@ export class Game extends CustomScene {
             // Match feedback animation
             this.selectedTiles.forEach(tile => {
                 this.tweens.add({
-                    targets: [tile.gameObject, tile.border],
+                    targets: tile.gameObject,
                     scaleX: 1.2,
                     scaleY: 1.2,
                     duration: 150,
@@ -334,7 +427,7 @@ export class Game extends CustomScene {
             // Shake tiles feedback
             this.selectedTiles.forEach(tile => {
                 this.tweens.add({
-                    targets: [tile.gameObject, tile.border],
+                    targets: tile.gameObject,
                     x: tile.gameObject.x + 8,
                     duration: 50,
                     yoyo: true,
@@ -363,7 +456,6 @@ export class Game extends CustomScene {
         const targetHeart = this.heartIcons[lostHeartIndex];
 
         if (targetHeart) {
-            // Animate heart losing effect & switch to empty heart icon
             this.tweens.add({
                 targets: targetHeart,
                 scaleX: 1.5,
@@ -371,11 +463,10 @@ export class Game extends CustomScene {
                 duration: 150,
                 yoyo: true,
                 onYoyo: () => {
-                    targetHeart.setText('🖤');
+                    targetHeart.setText('🩶');
                 }
             });
 
-            // Camera shake effect on life loss
             this.cameras.main.shake(200, 0.005);
         }
     }
@@ -394,14 +485,13 @@ export class Game extends CustomScene {
                 const tile = this.grid[row][col];
                 if (tile) {
                     this.tweens.add({
-                        targets: [tile.gameObject, tile.border],
+                        targets: tile.gameObject,
                         scaleX: 0,
                         scaleY: 0,
                         alpha: 0,
                         duration: 200,
                         onComplete: () => {
                             tile.gameObject.destroy();
-                            tile.border.destroy();
                             destroyedCount++;
 
                             if (destroyedCount === totalTiles) {
@@ -446,14 +536,14 @@ export class Game extends CustomScene {
             duration: 500,
             ease: 'Power1',
             onUpdate: () => {
-                this.scoreText.setText(`Coins: ${Math.floor(this.displayedCoins)}`);
+                this.scoreText.setText(`${Math.floor(this.displayedCoins)}`);
             }
         });
 
         this.tweens.add({
             targets: this.scoreText,
-            scaleX: 1.2,
-            scaleY: 1.2,
+            scaleX: 1.25,
+            scaleY: 1.25,
             duration: 150,
             yoyo: true
         });

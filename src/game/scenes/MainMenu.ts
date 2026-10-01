@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import { CustomScene } from '../utils/CustomScene';
 
-// Brand Palette Constants matching the official spec
+// Brand Palette Constants matching official spec
 const COLORS = {
     ORANGE: 0xF58324,
     ORANGE_DARK: 0xD96E14,
     PURPLE: 0x7845D8,
+    PURPLE_DARK: 0x5C3B8B,
     DEEP_INK: 0x201338,
     WARM_WHITE: 0xFFF6E8,
     CARD_BG: 0x2A1A45,
@@ -13,161 +14,134 @@ const COLORS = {
 };
 
 export class MainMenu extends CustomScene {
-    private camera!: Phaser.Cameras.Scene2D.Camera;
-
     constructor() {
         super('MainMenu');
     }
 
     create() {
         super.create();
-        this.camera = this.cameras.main;
-        this.camera.setBackgroundColor(COLORS.DEEP_INK);
+        this.cameras.main.setBackgroundColor(COLORS.DEEP_INK);
 
-        const centerX = this.scale.width / 2;
-        const centerY = this.scale.height / 2;
+        const centerX = Math.floor(this.scale.width / 2);
+        const centerY = Math.floor(this.scale.height / 2);
 
-        // --- BACKGROUND DECORATIVE ACCENTS ---
-        const bgGlow = this.add.graphics();
-        bgGlow.fillStyle(COLORS.PURPLE, 0.15);
-        bgGlow.fillCircle(centerX, centerY - 60, 180);
+        // --- Background Graphic Accent ---
+        const bgGfx = this.add.graphics();
+        bgGfx.fillStyle(COLORS.CARD_BG, 0.4);
+        bgGfx.fillCircle(centerX, centerY - 40, 160);
 
-        // --- BRAND LOGO / TITLE HEADER ---
-        const titleText = this.add.text(centerX, centerY - 190, 'SCRAMBLY', {
+        // --- Title Banner ---
+        this.add.text(centerX, Math.floor(centerY - 100), 'SCRAMBLY', {
             fontFamily: 'Arial Black',
-            fontSize: '38px',
+            fontSize: '36px',
             color: '#F58324',
             stroke: '#201338',
-            strokeThickness: 6
+            strokeThickness: 6,
+            resolution: 2
         }).setOrigin(0.5);
 
-        const subtitleText = this.add.text(centerX, centerY - 148, 'Play & Claim Rewards', {
-            fontFamily: 'Arial',
-            fontSize: '15px',
-            color: '#FFF6E8',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        // Subtle pulsing effect on title
-        this.tweens.add({
-            targets: [titleText, subtitleText],
-            scaleX: 1.03,
-            scaleY: 1.03,
-            duration: 1500,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
-
-        // --- TUTORIAL CARD CONTAINER ---
-        const cardWidth = 310;
-        const cardHeight = 210;
-        const cardY = centerY - 10;
-
-        // Outer Shadow & Card Frame
-        const cardGfx = this.add.graphics();
-        // Drop Shadow
-        cardGfx.fillStyle(0x000000, 0.3);
-        cardGfx.fillRoundedRect(centerX - cardWidth / 2 + 4, cardY - cardHeight / 2 + 4, cardWidth, cardHeight, 16);
-        // Main Card Fill
-        cardGfx.fillStyle(COLORS.CARD_BG, 0.95);
-        cardGfx.fillRoundedRect(centerX - cardWidth / 2, cardY - cardHeight / 2, cardWidth, cardHeight, 16);
-        // Border
-        cardGfx.lineStyle(2, COLORS.PURPLE, 0.8);
-        cardGfx.strokeRoundedRect(centerX - cardWidth / 2, cardY - cardHeight / 2, cardWidth, cardHeight, 16);
-
-        // Header Label inside Card
-        this.add.text(centerX, cardY - 80, 'HOW TO PLAY', {
+        this.add.text(centerX, Math.floor(centerY - 55), 'REWARDS', {
             fontFamily: 'Arial Black',
-            fontSize: '15px',
-            color: '#FFD700'
+            fontSize: '28px',
+            color: '#FFF6E8',
+            stroke: '#201338',
+            strokeThickness: 5,
+            resolution: 2
         }).setOrigin(0.5);
 
-        // Tutorial Steps Data
-        const steps = [
-            { icon: '🧩', text: 'Match 3 tiles of the same color' },
-            { icon: '⚡', text: 'Beat the bottom countdown timer' },
-            { icon: '🪙', text: 'Earn coins & protect your 3 lives!' }
-        ];
+        // Subtitle / Prompt Text
+        this.add.text(centerX, Math.floor(centerY + 10), 'Match tiles & earn points!', {
+            fontFamily: 'Arial',
+            fontSize: '16px',
+            color: '#FFF6E8',
+            fontStyle: 'bold',
+            resolution: 2
+        }).setOrigin(0.5);
 
-        steps.forEach((step, index) => {
-            const stepY = cardY - 42 + (index * 42);
+        // --- Interactive Play Button ---
+        this.createPlayButton(centerX, Math.floor(centerY + 90));
+    }
 
-            // Row background pill
-            const rowGfx = this.add.graphics();
-            rowGfx.fillStyle(COLORS.DEEP_INK, 0.6);
-            rowGfx.fillRoundedRect(centerX - 135, stepY - 16, 270, 32, 8);
+    private createPlayButton(x: number, y: number) {
+        const btnWidth = 200;
+        const btnHeight = 54;
 
-            // Icon Badge
-            this.add.text(centerX - 118, stepY, step.icon, {
-                fontSize: '16px'
-            }).setOrigin(0.5);
-
-            // Step Description
-            this.add.text(centerX - 98, stepY, step.text, {
-                fontFamily: 'Arial',
-                fontSize: '12px',
-                color: '#FFF6E8',
-                fontStyle: 'bold'
-            }).setOrigin(0, 0.5);
-        });
-
-        // --- START GAME BUTTON ---
-        const btnY = centerY + 145;
-        const btnWidth = 220;
-        const btnHeight = 50;
-
-        // Button Container
-        const btnContainer = this.add.container(centerX, btnY);
+        const buttonContainer = this.add.container(x, y);
 
         const btnGfx = this.add.graphics();
+        this.drawButtonState(btnGfx, btnWidth, btnHeight, false);
 
-        const drawButton = (isHover: boolean = false) => {
-            btnGfx.clear();
-            const color = isHover ? COLORS.ORANGE_DARK : COLORS.ORANGE;
-            
-            // Button Shadow
-            btnGfx.fillStyle(0x000000, 0.35);
-            btnGfx.fillRoundedRect(-btnWidth / 2 + 3, -btnHeight / 2 + 4, btnWidth, btnHeight, 25);
-
-            // Main Base
-            btnGfx.fillStyle(color, 1);
-            btnGfx.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 25);
-
-            // Top Inner Highlight for depth
-            btnGfx.fillStyle(0xFFFFFF, 0.2);
-            btnGfx.fillRoundedRect(-btnWidth / 2 + 6, -btnHeight / 2 + 4, btnWidth - 12, (btnHeight - 8) / 2, { tl: 18, tr: 18, bl: 4, br: 4 });
-        };
-
-        drawButton(false);
-
-        const btnText = this.add.text(0, 0, 'PLAY NOW 🎮', {
+        // High-res play icon & button text
+        const playText = this.add.text(0, 0, '▶  PLAY NOW', {
             fontFamily: 'Arial Black',
             fontSize: '18px',
-            color: '#FFF6E8'
+            color: '#FFF6E8',
+            padding: { top: 4, bottom: 4, left: 4, right: 4 },
+            resolution: 2
         }).setOrigin(0.5);
 
-        btnContainer.add([btnGfx, btnText]);
+        buttonContainer.add([btnGfx, playText]);
+        buttonContainer.setSize(btnWidth, btnHeight);
+        buttonContainer.setInteractive({ useHandCursor: true });
 
-        // Hit Area setup using Container dimensions
-        btnContainer.setSize(btnWidth, btnHeight);
-        btnContainer.setInteractive({ useHandCursor: true });
-
-        // Hover & Click Interactions
-        btnContainer.on('pointerover', () => drawButton(true));
-        btnContainer.on('pointerout', () => drawButton(false));
-
-        btnContainer.on('pointerdown', () => {
+        // Hover & Click Tweens
+        buttonContainer.on('pointerover', () => {
+            this.drawButtonState(btnGfx, btnWidth, btnHeight, true);
             this.tweens.add({
-                targets: btnContainer,
-                scaleX: 0.94,
-                scaleY: 0.94,
-                duration: 70,
+                targets: buttonContainer,
+                scaleX: 1.05,
+                scaleY: 1.05,
+                duration: 100
+            });
+        });
+
+        buttonContainer.on('pointerout', () => {
+            this.drawButtonState(btnGfx, btnWidth, btnHeight, false);
+            this.tweens.add({
+                targets: buttonContainer,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 100
+            });
+        });
+
+        buttonContainer.on('pointerdown', () => {
+            this.tweens.add({
+                targets: buttonContainer,
+                scaleX: 0.95,
+                scaleY: 0.95,
+                duration: 80,
                 yoyo: true,
                 onComplete: () => {
                     this.scene.start('Game');
                 }
             });
         });
+    }
+
+    private drawButtonState(gfx: Phaser.GameObjects.Graphics, width: number, height: number, isHovered: boolean) {
+        gfx.clear();
+
+        const halfW = Math.floor(width / 2);
+        const halfH = Math.floor(height / 2);
+
+        // Button Shadow
+        gfx.fillStyle(0x000000, 0.4);
+        gfx.fillRoundedRect(-halfW + 2, -halfH + 4, width, height, 16);
+
+        // Main Fill
+        const fillColor = isHovered ? COLORS.ORANGE : COLORS.PURPLE;
+        const borderColor = isHovered ? COLORS.ACCENT_GOLD : COLORS.ORANGE;
+
+        gfx.fillStyle(fillColor, 1);
+        gfx.fillRoundedRect(-halfW, -halfH, width, height, 16);
+
+        // Top Gloss Highlight
+        gfx.fillStyle(0xFFFFFF, 0.2);
+        gfx.fillRoundedRect(-halfW + 4, -halfH + 3, width - 8, Math.floor((height - 6) / 2), { tl: 13, tr: 13, bl: 3, br: 3 });
+
+        // Border Rim
+        gfx.lineStyle(2, borderColor, 0.9);
+        gfx.strokeRoundedRect(-halfW, -halfH, width, height, 16);
     }
 }
