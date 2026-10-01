@@ -4,7 +4,7 @@ import { CustomScene } from '../utils/CustomScene';
 interface TileData {
     gameObject: Phaser.GameObjects.Rectangle;
     border: Phaser.GameObjects.Rectangle;
-    type: number; // 0, 1, or 2 to represent item types
+    type: number;
     row: number;
     col: number;
 }
@@ -28,7 +28,12 @@ export class Game extends CustomScene {
     private grid: (TileData | null)[][] = [];
     private selectedTiles: TileData[] = [];
     private isProcessing: boolean = false;
+
+    // UI & Score State
     private statusText!: Phaser.GameObjects.Text;
+    private scoreText!: Phaser.GameObjects.Text;
+    private coinsEarned: number = 0;
+    private displayedCoins: number = 0;
 
     constructor() {
         super('Game');
@@ -39,31 +44,61 @@ export class Game extends CustomScene {
         this.camera = this.cameras.main;
         this.camera.setBackgroundColor(0x201338);
 
+        // Score & Title UI
+        this.createScoreUI();
+
         // Status / Prompt Text
         this.statusText = this.add.text(
             this.scale.width / 2, 
-            120, 
+            180, 
             'Select 3 matching tiles!', 
             {
                 fontFamily: 'Arial',
-                fontSize: '20px',
-                color: '#FFFFFF',
+                fontSize: '18px',
+                color: '#FFF6E8',
                 align: 'center'
             }
         ).setOrigin(0.5);
 
-        // Build 3x3 Grid
+        // Build Initial 3x3 Grid
         this.createGrid();
     }
 
-    private createGrid() {
-        // Calculate offset to center the 3x3 grid horizontally and vertically
+    private createScoreUI() {
+        const centerX = this.scale.width / 2;
+
+        // Title Header Banner
+        this.add.text(centerX, 50, 'SCRAMBLY REWARDS', {
+            fontFamily: 'Arial Black',
+            fontSize: '22px',
+            color: '#F58324'
+        }).setOrigin(0.5);
+
+        // Coin Score Background Box
+        this.add.rectangle(centerX, 110, 220, 50, 0x2D1B4E, 0.9)
+            .setStrokeStyle(2, 0xF58324);
+
+        // Coin Counter Text
+        this.scoreText = this.add.text(centerX, 110, 'Coins: 0', {
+            fontFamily: 'Arial',
+            fontSize: '22px',
+            color: '#FFD700',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+    }
+
+    private getGridOrigins() {
         const gridWidth = (this.GRID_COLS * this.TILE_SIZE) + ((this.GRID_COLS - 1) * this.TILE_SPACING);
         const gridHeight = (this.GRID_ROWS * this.TILE_SIZE) + ((this.GRID_ROWS - 1) * this.TILE_SPACING);
         
         const startX = (this.scale.width - gridWidth) / 2 + (this.TILE_SIZE / 2);
-        const startY = (this.scale.height - gridHeight) / 2 + (this.TILE_SIZE / 2);
+        const startY = (this.scale.height - gridHeight) / 2 + (this.TILE_SIZE / 2) + 40;
 
+        return { startX, startY };
+    }
+
+    private createGrid() {
+        const { startX, startY } = this.getGridOrigins();
         this.grid = [];
 
         for (let row = 0; row < this.GRID_ROWS; row++) {
@@ -77,16 +112,13 @@ export class Game extends CustomScene {
         }
     }
 
-    private spawnTile(row: number, col: number, x: number, y: number) {
-        // Pick a random tile type using Phaser's Math utility
+    private spawnTile(row: number, col: number, x: number, y: number, animate: boolean = false) {
         const randomType = PhaserMath.RND.pick(this.TILE_TYPES);
 
-        // Selection highlight border (initially hidden)
         const border = this.add.rectangle(x, y, this.TILE_SIZE + 6, this.TILE_SIZE + 6)
             .setStrokeStyle(4, 0xFFFF00)
             .setVisible(false);
 
-        // Tile rectangle
         const tileRect = this.add.rectangle(x, y, this.TILE_SIZE, this.TILE_SIZE, randomType.color)
             .setInteractive({ useHandCursor: true });
 
@@ -98,23 +130,31 @@ export class Game extends CustomScene {
             col: col
         };
 
-        // Pointer event
         tileRect.on('pointerdown', () => this.handleTileClick(tileData));
 
         this.grid[row][col] = tileData;
+
+        // Optional pop-in entrance animation for grid refresh
+        if (animate) {
+            tileRect.setScale(0);
+            this.tweens.add({
+                targets: tileRect,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 200,
+                delay: (row * 3 + col) * 30 // Staggered pop-in
+            });
+        }
     }
 
     private handleTileClick(tile: TileData) {
-        // Prevent interaction during animations or if tile is already selected
         if (this.isProcessing || this.selectedTiles.includes(tile)) {
             return;
         }
 
-        // Select tile
         this.selectedTiles.push(tile);
         tile.border.setVisible(true);
 
-        // Pop scale effect on click
         this.tweens.add({
             targets: [tile.gameObject, tile.border],
             scaleX: 1.1,
@@ -123,10 +163,8 @@ export class Game extends CustomScene {
             yoyo: true
         });
 
-        // Update status text
         this.statusText.setText(`Selected: ${this.selectedTiles.length} / 3`);
 
-        // Check if 3 tiles are selected
         if (this.selectedTiles.length === 3) {
             this.checkMatch();
         }
@@ -140,28 +178,27 @@ export class Game extends CustomScene {
 
         if (isMatch) {
             this.statusText.setText('Match Found! +100 Coins');
-            
-            // Fade out and spawn new tiles
+            this.addCoins(100);
+
+            // Match feedback animation (scale up & bright pop)
             this.selectedTiles.forEach(tile => {
                 this.tweens.add({
                     targets: [tile.gameObject, tile.border],
-                    alpha: 0,
-                    scaleX: 0,
-                    scaleY: 0,
-                    duration: 250,
-                    onComplete: () => {
-                        this.replaceTile(tile);
-                    }
+                    scaleX: 1.2,
+                    scaleY: 1.2,
+                    duration: 150,
+                    yoyo: true
                 });
             });
 
-            this.time.delayedCall(300, () => {
-                this.resetSelection();
+            // Refresh full grid after match sequence
+            this.time.delayedCall(450, () => {
+                this.resetFullGrid();
             });
         } else {
             this.statusText.setText('No Match! Try again.');
 
-            // Shake tiles to indicate failure
+            // Shake tiles feedback
             this.selectedTiles.forEach(tile => {
                 this.tweens.add({
                     targets: [tile.gameObject, tile.border],
@@ -172,50 +209,86 @@ export class Game extends CustomScene {
                 });
             });
 
-            this.time.delayedCall(400, () => {
-                this.resetSelection();
+            // Refresh full grid after failure sequence
+            this.time.delayedCall(450, () => {
+                this.resetFullGrid();
             });
         }
     }
 
-    private replaceTile(oldTile: TileData) {
-        const { row, col } = oldTile;
-        const x = oldTile.gameObject.x;
-        const y = oldTile.gameObject.y;
+    private resetFullGrid() {
+        let destroyedCount = 0;
+        const totalTiles = this.GRID_ROWS * this.GRID_COLS;
 
-        // Clean up old game objects
-        oldTile.gameObject.destroy();
-        oldTile.border.destroy();
+        // Shrink and destroy all existing tiles on the board
+        for (let row = 0; row < this.GRID_ROWS; row++) {
+            for (let col = 0; col < this.GRID_COLS; col++) {
+                const tile = this.grid[row][col];
+                if (tile) {
+                    this.tweens.add({
+                        targets: [tile.gameObject, tile.border],
+                        scaleX: 0,
+                        scaleY: 0,
+                        alpha: 0,
+                        duration: 200,
+                        onComplete: () => {
+                            tile.gameObject.destroy();
+                            tile.border.destroy();
+                            destroyedCount++;
 
-        // Spawn replacement
-        this.spawnTile(row, col, x, y);
+                            // Once all tiles are destroyed, spawn the new grid
+                            if (destroyedCount === totalTiles) {
+                                this.selectedTiles = [];
+                                this.createGridAnimated();
+                            }
+                        }
+                    });
+                }
+            }
+        }
+    }
 
-        // Animate entrance
-        const newTile = this.grid[row][col]!;
-        newTile.gameObject.setScale(0);
-        
-        this.tweens.add({
-            targets: newTile.gameObject,
-            scaleX: 1,
-            scaleY: 1,
-            duration: 200
+    private createGridAnimated() {
+        const { startX, startY } = this.getGridOrigins();
+        this.grid = [];
+
+        for (let row = 0; row < this.GRID_ROWS; row++) {
+            this.grid[row] = [];
+            for (let col = 0; col < this.GRID_COLS; col++) {
+                const x = startX + col * (this.TILE_SIZE + this.TILE_SPACING);
+                const y = startY + row * (this.TILE_SIZE + this.TILE_SPACING);
+
+                this.spawnTile(row, col, x, y, true);
+            }
+        }
+
+        // Reset state & update prompt
+        this.time.delayedCall(300, () => {
+            this.isProcessing = false;
+            this.statusText.setText('Select 3 matching tiles!');
         });
     }
 
-    private resetSelection() {
-        this.selectedTiles.forEach(tile => {
-            if (tile.border && tile.border.active) {
-                tile.border.setVisible(false);
+    private addCoins(amount: number) {
+        const targetCoins = this.coinsEarned + amount;
+        this.coinsEarned = targetCoins;
+
+        this.tweens.add({
+            targets: this,
+            displayedCoins: targetCoins,
+            duration: 500,
+            ease: 'Power1',
+            onUpdate: () => {
+                this.scoreText.setText(`Coins: ${Math.floor(this.displayedCoins)}`);
             }
         });
 
-        this.selectedTiles = [];
-        this.isProcessing = false;
-        
-        this.time.delayedCall(500, () => {
-            if (!this.isProcessing) {
-                this.statusText.setText('Select 3 matching tiles!');
-            }
+        this.tweens.add({
+            targets: this.scoreText,
+            scaleX: 1.2,
+            scaleY: 1.2,
+            duration: 150,
+            yoyo: true
         });
     }
 }
