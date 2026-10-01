@@ -25,14 +25,14 @@ const config: Phaser.Types.Core.GameConfig = {
     scale: {
         mode: Scale.FIT,
         autoCenter: Scale.CENTER_BOTH,
-        width: GAME_WIDTH,ÍÍ
+        width: GAME_WIDTH,
         height: GAME_HEIGHT,
         // Minimum and maximum display sizes
         min: {
             width: 320,
             height: 568
         },
-        max: {ÍÍÍ
+        max: {
             width: 768,
             height: 1664
         }
