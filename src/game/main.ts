@@ -2,15 +2,17 @@ import { Boot } from './scenes/Boot';
 import { GameOver } from './scenes/GameOver';
 import { Game as MainGame } from './scenes/Game';
 import { MainMenu } from './scenes/MainMenu';
-import { AUTO, Game } from 'phaser';
+import { AUTO, Game, Scale } from 'phaser';
 import { Preloader } from './scenes/Preloader';
 
-//  Find out more information about the Game Config at:
-//  https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
+
+export const GAME_WIDTH = 390;
+export const GAME_HEIGHT = 844;
+
 const config: Phaser.Types.Core.GameConfig = {
     type: AUTO,
-    width: 1024,
-    height: 768,
+    width: 320,
+    height: 568,
     parent: 'game-container',
     backgroundColor: '#028af8',
     scene: [
@@ -19,7 +21,22 @@ const config: Phaser.Types.Core.GameConfig = {
         MainMenu,
         MainGame,
         GameOver
-    ]
+    ],
+    scale: {
+        mode: Scale.FIT,
+        autoCenter: Scale.CENTER_BOTH,
+        width: GAME_WIDTH,ÍÍ
+        height: GAME_HEIGHT,
+        // Minimum and maximum display sizes
+        min: {
+            width: 320,
+            height: 568
+        },
+        max: {ÍÍÍ
+            width: 768,
+            height: 1664
+        }
+  }
 };
 
 const StartGame = (parent: string) => {
