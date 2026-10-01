@@ -1,6 +1,6 @@
-import { Scene } from 'phaser';
+import { CustomScene } from '../utils/CustomScene';
 
-export class Game extends Scene
+export class Game extends CustomScene
 {
     camera: Phaser.Cameras.Scene2D.Camera;
     background: Phaser.GameObjects.Image;
@@ -13,6 +13,7 @@ export class Game extends Scene
 
     create ()
     {
+        super.create();
         this.camera = this.cameras.main;
         this.camera.setBackgroundColor(0x201338);
 

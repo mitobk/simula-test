@@ -1,6 +1,7 @@
-import { Scene, GameObjects } from 'phaser';
+import { CustomScene } from '../utils/CustomScene';
+import { GameObjects } from 'phaser';
 
-export class MainMenu extends Scene
+export class MainMenu extends CustomScene
 {
     background: GameObjects.Image;
     logo: GameObjects.Image;
@@ -13,6 +14,7 @@ export class MainMenu extends Scene
 
     create ()
     {
+        super.create();
         this.background = this.add.image(512, 384, 'background');
 
         this.logo = this.add.image(512, 300, 'logo');

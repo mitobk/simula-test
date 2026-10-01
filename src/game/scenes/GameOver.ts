@@ -1,6 +1,6 @@
-import { Scene } from 'phaser';
+import { CustomScene } from '../utils/CustomScene';
 
-export class GameOver extends Scene
+export class GameOver extends CustomScene
 {
     camera: Phaser.Cameras.Scene2D.Camera;
     background: Phaser.GameObjects.Image;
@@ -13,6 +13,7 @@ export class GameOver extends Scene
 
     create ()
     {
+        super.create();
         this.camera = this.cameras.main
         this.camera.setBackgroundColor(0xff0000);
 

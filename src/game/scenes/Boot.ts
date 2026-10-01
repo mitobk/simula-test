@@ -1,6 +1,6 @@
-import { Scene } from 'phaser';
+import { CustomScene } from '../utils/CustomScene';
 
-export class Boot extends Scene
+export class Boot extends CustomScene
 {
     constructor ()
     {
@@ -17,6 +17,7 @@ export class Boot extends Scene
 
     create ()
     {
+        super.create();
         this.scene.start('Preloader');
     }
 }
