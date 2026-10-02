@@ -75,24 +75,45 @@ export class OrientationManager {
         const windowWidth = window.innerWidth || document.documentElement.clientWidth;
         const windowHeight = window.innerHeight || document.documentElement.clientHeight;
 
-        // True landscape condition based strictly on physical viewport dimensions
         const isLandscapeNow = windowWidth > windowHeight;
 
         if (force || isLandscapeNow !== this.isLandscape) {
             this.isLandscape = isLandscapeNow;
+            const sceneKey = this.scene.scene.key;
 
             if (this.overlayContainer && this.overlayContainer.active) {
                 if (this.isLandscape) {
                     this.overlayContainer.setVisible(true);
                     
-                    if (this.scene.scene.isActive()) {
-                        this.scene.scene.pause();
+                    if (force) {
+                        // Allow the camera fadeIn animation (250ms) to complete before pausing 
+                        // so the screen doesn't get stuck black on initial landscape boot.
+                        this.scene.time.delayedCall(300, () => {
+                            const currentWidth = window.innerWidth || document.documentElement.clientWidth;
+                            const currentHeight = window.innerHeight || document.documentElement.clientHeight;
+                            if (currentWidth > currentHeight && !this.scene.scene.isPaused(sceneKey)) {
+                                this.scene.scene.pause(sceneKey);
+                                if (this.scene.sound) {
+                                    this.scene.sound.pauseAll();
+                                }
+                            }
+                        });
+                    } else {
+                        if (!this.scene.scene.isPaused(sceneKey)) {
+                            this.scene.scene.pause(sceneKey);
+                            if (this.scene.sound) {
+                                this.scene.sound.pauseAll();
+                            }
+                        }
                     }
                 } else {
                     this.overlayContainer.setVisible(false);
                     
-                    if (this.scene.scene.isPaused()) {
-                        this.scene.scene.resume();
+                    if (this.scene.scene.isPaused(sceneKey)) {
+                        this.scene.scene.resume(sceneKey);
+                        if (this.scene.sound) {
+                            this.scene.sound.resumeAll();
+                        }
                     }
                 }
             }
