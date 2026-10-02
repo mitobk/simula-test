@@ -170,39 +170,52 @@ export class Game extends CustomScene {
             resolution: 2
         }).setOrigin(0.5);
 
-        // Coin Score Background Card
+        // --- Coin Score Background Card ---
+        const coinCardX = centerX - 135;
+        const coinCardWidth = 120;
+        const coinCardCenter = coinCardX + (coinCardWidth / 2);
+
         const coinCard = this.add.graphics();
         coinCard.fillStyle(COLORS.CARD_BG, 0.95);
-        coinCard.fillRoundedRect(centerX - 135, 75, 120, 44, 12);
+        coinCard.fillRoundedRect(coinCardX, 75, coinCardWidth, 44, 12);
         coinCard.lineStyle(2, COLORS.ORANGE, 0.8);
-        coinCard.strokeRoundedRect(centerX - 135, 75, 120, 44, 12);
+        coinCard.strokeRoundedRect(coinCardX, 75, coinCardWidth, 44, 12);
 
-        // Coin Emoji Text
-        this.add.text(centerX - 120, 97, '🪙', { 
+        // Perfectly center coin icon & score text as a group around coinCardCenter
+        // Assuming total combined content width is roughly ~50px
+        const coinGroupStartX = coinCardCenter - 26;
+
+        this.add.text(coinGroupStartX, 97, '🪙', { 
             fontSize: '18px',
             padding: { top: 6, bottom: 6, left: 2, right: 2 },
             resolution: 2
-        }).setOrigin(0.5);
+        }).setOrigin(0, 0.5);
 
-        // Coin Counter Text
-        this.scoreText = this.add.text(centerX - 100, 97, '0', {
+        this.scoreText = this.add.text(coinGroupStartX + 26, 97, '0', {
             fontFamily: 'Arial Black',
             fontSize: '17px',
             color: '#FFD700',
             resolution: 2
         }).setOrigin(0, 0.5);
 
-        // Lives Indicator Container Box
+        // --- Lives Indicator Container Box ---
+        const livesCardX = centerX + 15;
+        const livesCardWidth = 120;
+        const livesCardCenter = livesCardX + (livesCardWidth / 2);
+
         const livesCard = this.add.graphics();
         livesCard.fillStyle(COLORS.CARD_BG, 0.95);
-        livesCard.fillRoundedRect(centerX + 15, 75, 120, 44, 12);
+        livesCard.fillRoundedRect(livesCardX, 75, livesCardWidth, 44, 12);
         livesCard.lineStyle(2, COLORS.RED_ACCENT, 0.8);
-        livesCard.strokeRoundedRect(centerX + 15, 75, 120, 44, 12);
+        livesCard.strokeRoundedRect(livesCardX, 75, livesCardWidth, 44, 12);
 
-        // Render fresh Lives Hearts
-        const heartStartX = centerX + 38;
+        // Center the 3 hearts evenly around livesCardCenter (spacing them 28px apart)
+        const heartSpacing = 28;
+        const totalHeartsWidth = (this.MAX_LIVES - 1) * heartSpacing;
+        const heartStartX = livesCardCenter - (totalHeartsWidth / 2);
+
         for (let i = 0; i < this.MAX_LIVES; i++) {
-            const heart = this.add.text(heartStartX + (i * 28), 97, '❤️', {
+            const heart = this.add.text(heartStartX + (i * heartSpacing), 97, '❤️', {
                 fontSize: '18px',
                 padding: { top: 6, bottom: 6, left: 2, right: 2 },
                 resolution: 2
@@ -211,6 +224,7 @@ export class Game extends CustomScene {
             this.heartIcons.push(heart);
         }
     }
+
 
     private createTimerBarUI() {
         const barWidth = this.scale.width - 40;
