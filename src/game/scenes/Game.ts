@@ -277,24 +277,47 @@ export class Game extends CustomScene {
         }
     }
 
-    private handleTimeOut() {
+        private handleTimeOut() {
         if (this.isProcessing) return;
 
         this.isProcessing = true;
         this.statusText.setText('Time Out! Lost 1 Life ⏰💔');
         this.showToastNotification('TIME OUT! -1 LIFE 💔', COLORS.RED_ACCENT);
+        
+        // 1. Add camera flash and shake for visual impact
+        this.cameras.main.flash(200, 231, 76, 60);
+        this.cameras.main.shake(250, 0.008);
+
+        // 2. If tiles were partially selected when time ran out, turn them red & shake them
+        if (this.selectedTiles.length > 0) {
+            this.selectedTiles.forEach(tile => {
+                const tileConfig = this.TILE_TYPES.find(t => t.id === tile.type)!;
+                this.drawTileGraphic(tile.bgGfx, tile.borderGfx, tileConfig, false, true);
+
+                this.tweens.add({
+                    targets: tile.gameObject,
+                    x: tile.gameObject.x + 12,
+                    duration: 45,
+                    yoyo: true,
+                    repeat: 3
+                });
+            });
+        }
+
+        // 3. Lose life & process continuation or game over
         this.loseLife();
 
         if (this.lives > 0) {
-            this.time.delayedCall(600, () => {
+            this.time.delayedCall(700, () => {
                 this.resetFullGrid();
             });
         } else {
-            this.time.delayedCall(800, () => {
+            this.time.delayedCall(850, () => {
                 this.triggerGameOver();
             });
         }
     }
+
 
     private getGridOrigins() {
         const gridWidth = (this.GRID_COLS * this.TILE_SIZE) + ((this.GRID_COLS - 1) * this.TILE_SPACING);
