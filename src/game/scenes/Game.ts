@@ -33,11 +33,11 @@ export class Game extends CustomScene {
     private readonly TILE_SIZE = 86;
     private readonly TILE_SPACING = 16;
 
-    // Styled Tile Palette
+    // Styled Tile Palette - Fox Mascot placed on all tile variants
     private readonly TILE_TYPES = [
-        { id: 0, color: 0xF58324, border: 0xFFD700, icon: '⚡' }, // Scrambly Orange / Gold
-        { id: 1, color: 0x7845D8, border: 0xB58BFF, icon: '💎' }, // Deep Purple / Soft Lavender
-        { id: 2, color: 0x2ECC71, border: 0xA3E4D7, icon: '🌟' }  // Vibrant Emerald / Mint
+        { id: 0, color: 0xF58324, border: 0xFFD700 }, // Scrambly Orange / Gold
+        { id: 1, color: 0x7845D8, border: 0xB58BFF }, // Deep Purple / Soft Lavender
+        { id: 2, color: 0x2ECC71, border: 0xA3E4D7 }  // Vibrant Emerald / Mint
     ];
 
     private grid: (TileData | null)[][] = [];
@@ -221,13 +221,11 @@ export class Game extends CustomScene {
         const x = 20;
         const y = this.scale.height - 35;
 
-        // Calculate progress (1.0 -> full, 0.0 -> empty)
         const progress = Math.max(0, 1 - this.timerEvent.getProgress());
         const currentBarWidth = Math.max(0, barWidth * progress);
 
         this.timerBarFill.clear();
 
-        // Dynamic Color Shift: Green -> Yellow -> Red
         let barColor = COLORS.GREEN_ACCENT;
         if (progress < 0.25) {
             barColor = COLORS.RED_ACCENT;
@@ -294,17 +292,13 @@ export class Game extends CustomScene {
         const borderGfx = this.add.graphics();
         const bgGfx = this.add.graphics();
 
-        // Draw tile initial state
+        // Draw tile background & border graphics
         this.drawTileGraphic(bgGfx, borderGfx, randomType, false);
 
-        // Tile Center Icon
-        const iconText = this.add.text(0, 0, randomType.icon, {
-            fontSize: '32px',
-            resolution: 2
-        }).setOrigin(0.5);
+        // Render Fox Mascot Face on ALL tiles
+        const foxGfx = this.renderFoxFace(0, 2);
 
-        container.add([borderGfx, bgGfx, iconText]);
-
+        container.add([borderGfx, bgGfx, foxGfx]);
         container.setInteractive({ useHandCursor: true });
 
         const tileData: TileData = {
@@ -332,6 +326,102 @@ export class Game extends CustomScene {
         }
     }
 
+    /**
+     * Renders procedural vector graphics of the fox mascot face within the tile container bounds.
+     */
+    private renderFoxFace(x: number, y: number): Phaser.GameObjects.Graphics {
+        const gfx = this.add.graphics();
+
+        const COLOR_ORANGE = 0xF58324;
+        const COLOR_ORANGE_DARK = 0xD96E14;
+        const COLOR_WHITE = 0xFFFFFF;
+        const COLOR_INK = 0x1A1126;
+
+        // Helper to draw quadratic bezier curves safely across Phaser versions
+        const drawQuadCurve = (
+            startX: number, startY: number,
+            controlX: number, controlY: number,
+            endX: number, endY: number,
+            steps: number = 10
+        ) => {
+            for (let i = 1; i <= steps; i++) {
+                const t = i / steps;
+                const px = PhaserMath.Interpolation.QuadraticBezier(t, startX, controlX, endX);
+                const py = PhaserMath.Interpolation.QuadraticBezier(t, startY, controlY, endY);
+                gfx.lineTo(px, py);
+            }
+        };
+
+        // 1. EARS (BACKGROUND)
+        gfx.fillStyle(COLOR_ORANGE, 1);
+        gfx.fillTriangle(x - 22, y - 2, x - 28, y - 30, x - 6, y - 14);
+        gfx.lineStyle(2, COLOR_ORANGE_DARK, 1);
+        gfx.strokeTriangle(x - 22, y - 2, x - 28, y - 30, x - 6, y - 14);
+
+        gfx.fillStyle(COLOR_WHITE, 1);
+        gfx.fillTriangle(x - 21, y - 5, x - 25, y - 24, x - 9, y - 14);
+
+        gfx.fillStyle(COLOR_ORANGE, 1);
+        gfx.fillTriangle(x + 22, y - 2, x + 28, y - 30, x + 6, y - 14);
+        gfx.lineStyle(2, COLOR_ORANGE_DARK, 1);
+        gfx.strokeTriangle(x + 22, y - 2, x + 28, y - 30, x + 6, y - 14);
+
+        gfx.fillStyle(COLOR_WHITE, 1);
+        gfx.fillTriangle(x + 21, y - 5, x + 25, y - 24, x + 9, y - 14);
+
+        // 2. HEAD BASE (ORANGE DOME)
+        gfx.fillStyle(COLOR_ORANGE, 1);
+        gfx.fillCircle(x, y - 2, 23);
+        gfx.fillEllipse(x, y + 2, 52, 34);
+
+        // 3. LOWER FACE & SPIKY CHEEKS (WHITE MUZZLE)
+        gfx.fillStyle(COLOR_WHITE, 1);
+        gfx.beginPath();
+        gfx.moveTo(x - 26, y + 2);
+        gfx.lineTo(x - 28, y + 8);
+        gfx.lineTo(x - 20, y + 8);
+        gfx.lineTo(x - 22, y + 15);
+        gfx.lineTo(x - 12, y + 14);
+        
+        drawQuadCurve(x - 12, y + 14, x, y + 21, x + 12, y + 14);
+
+        gfx.lineTo(x + 22, y + 15);
+        gfx.lineTo(x + 20, y + 8);
+        gfx.lineTo(x + 28, y + 8);
+        gfx.lineTo(x + 26, y + 2);
+
+        drawQuadCurve(x + 26, y + 2, x, y + 8, x - 26, y + 2);
+
+        gfx.closePath();
+        gfx.fillPath();
+
+        // 4. EYEBROWS
+        gfx.fillStyle(COLOR_WHITE, 1);
+        gfx.fillRoundedRect(x - 13, y - 16, 8, 4, 2);
+        gfx.fillRoundedRect(x + 5, y - 16, 8, 4, 2);
+
+        // 5. EYES
+        gfx.fillStyle(COLOR_INK, 1);
+        gfx.fillEllipse(x - 10, y - 4, 7, 10);
+        gfx.fillEllipse(x + 10, y - 4, 7, 10);
+
+        gfx.fillStyle(COLOR_WHITE, 1);
+        gfx.fillCircle(x - 11, y - 6, 1.5);
+        gfx.fillCircle(x + 9, y - 6, 1.5);
+
+        // 6. NOSE & MOUTH
+        gfx.fillStyle(COLOR_INK, 1);
+        gfx.fillTriangle(x - 3, y + 4, x + 3, y + 4, x, y + 7);
+
+        gfx.lineStyle(1.5, COLOR_INK, 1);
+        gfx.beginPath();
+        gfx.arc(x - 3, y + 8, 3, Math.PI, 0, true);
+        gfx.arc(x + 3, y + 8, 3, Math.PI, 0, true);
+        gfx.strokePath();
+
+        return gfx;
+    }
+
     private drawTileGraphic(bgGfx: Phaser.GameObjects.Graphics, borderGfx: Phaser.GameObjects.Graphics, tileTypeConfig: typeof this.TILE_TYPES[0], isSelected: boolean) {
         bgGfx.clear();
         borderGfx.clear();
@@ -339,7 +429,6 @@ export class Game extends CustomScene {
         const half = this.TILE_SIZE / 2;
 
         if (isSelected) {
-            // Glowing Highlight Selection Border
             borderGfx.fillStyle(COLORS.ACCENT_GOLD, 0.4);
             borderGfx.fillRoundedRect(-half - 5, -half - 5, this.TILE_SIZE + 10, this.TILE_SIZE + 10, 18);
             borderGfx.lineStyle(3, COLORS.ACCENT_GOLD, 1);
@@ -399,13 +488,11 @@ export class Game extends CustomScene {
             this.statusText.setText('Match Found! +100 Coins');
             this.addCoins(100);
 
-            // Speed up round duration for next round (down to min limit of 5s)
             this.currentRoundTimeMs = Math.max(
                 this.MIN_TIME_MS, 
                 this.currentRoundTimeMs - this.TIME_DECREMENT_MS
             );
 
-            // Match feedback animation
             this.selectedTiles.forEach(tile => {
                 this.tweens.add({
                     targets: tile.gameObject,
@@ -416,7 +503,6 @@ export class Game extends CustomScene {
                 });
             });
 
-            // Refresh grid after match sequence
             this.time.delayedCall(450, () => {
                 this.resetFullGrid();
             });
@@ -424,7 +510,6 @@ export class Game extends CustomScene {
             this.statusText.setText('No Match! Lost 1 Life 💔');
             this.loseLife();
 
-            // Shake tiles feedback
             this.selectedTiles.forEach(tile => {
                 this.tweens.add({
                     targets: tile.gameObject,
@@ -435,7 +520,6 @@ export class Game extends CustomScene {
                 });
             });
 
-            // Check if game over or refresh grid
             if (this.lives > 0) {
                 this.time.delayedCall(500, () => {
                     this.resetFullGrid();
