@@ -1,6 +1,9 @@
 import { Scene, Cameras } from 'phaser';
+import { OrientationManager } from './OrientationManager';
 
 export class CustomScene extends Scene {
+    protected orientationManager?: OrientationManager;
+
     constructor(key: string) {
         super(key);
     }
@@ -8,6 +11,9 @@ export class CustomScene extends Scene {
     create() {
         // Smooth camera fade-in on every scene start
         this.cameras.main.fadeIn(250, 0, 0, 0);
+
+        // Automatically attach OrientationManager to enforce Portrait mode across all scenes
+        this.orientationManager = new OrientationManager(this);
     }
 
     /**
