@@ -311,11 +311,10 @@ export class MainMenu extends CustomScene {
         });
 
         buttonContainer.on('pointerdown', () => {
-            // Prevent multiple clicks
             buttonContainer.disableInteractive();
             pulseTween.stop();
 
-            // 1. Fire a massive explosion of 45 high-speed coins from the button position
+            // 1. Fire coin explosion burst
             for (let i = 0; i < 45; i++) {
                 const angle = PhaserMath.FloatBetween(-Math.PI * 0.95, -Math.PI * 0.05);
                 const speed = PhaserMath.FloatBetween(600, 1100);
@@ -336,7 +335,7 @@ export class MainMenu extends CustomScene {
                 });
             }
 
-            // 2. Button click bounce tween
+            // 2. Button bounce
             this.tweens.add({
                 targets: buttonContainer,
                 scaleX: 0.92,
@@ -345,14 +344,15 @@ export class MainMenu extends CustomScene {
                 yoyo: true
             });
 
-            // 3. Camera flash / punch effect for feedback
+            // 3. Screen punch/shake
             this.cameras.main.shake(150, 0.005);
 
-            // 4. Delay scene transition by 350ms so the user watches the burst fly across the screen
-            this.time.delayedCall(350, () => {
-                this.scene.start('Game');
+            // 4. Smooth Fade-Out Transition to Game scene
+            this.time.delayedCall(300, () => {
+                this.transitionTo('Game', {}, 250);
             });
         });
+
     }
 
     private drawButtonState(gfx: Phaser.GameObjects.Graphics, width: number, height: number, isHovered: boolean) {

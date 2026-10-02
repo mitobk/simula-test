@@ -284,10 +284,11 @@ export class GameOver extends CustomScene {
                 duration: 80,
                 yoyo: true,
                 onComplete: () => {
-                    this.scene.start('Game');
+                    this.transitionTo('Game', {}, 250);
                 }
             });
         });
+
     }
 
     update(_time: number, delta: number) {

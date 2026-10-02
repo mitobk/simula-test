@@ -114,7 +114,7 @@ export class Game extends CustomScene {
         // Score, Title & Lives UI
         this.createScoreUI();
 
-        // Timer Bar UI
+        // Timer Bar UI with Geometry Mask
         this.createTimerBarUI();
 
         // Status / Prompt Text Box
@@ -221,6 +221,39 @@ export class Game extends CustomScene {
         this.timerBarFill = this.add.graphics();
     }
 
+    private updateTimerBar() {
+        this.timerBarFill.clear();
+
+        if (!this.timerEvent || this.timerEvent.paused) {
+            return;
+        }
+
+        const barWidth = this.scale.width - 40;
+        const x = 20;
+        const y = this.scale.height - 35;
+
+        // Strictly clamp progress between 0.0 and 1.0
+        const rawProgress = 1 - this.timerEvent.getProgress();
+        const progress = PhaserMath.Clamp(rawProgress, 0, 1);
+        const currentBarWidth = Math.max(0, barWidth * progress);
+
+        let barColor = COLORS.GREEN_ACCENT;
+        if (progress < 0.25) {
+            barColor = COLORS.RED_ACCENT;
+        } else if (progress < 0.5) {
+            barColor = COLORS.ACCENT_GOLD;
+        }
+
+        // Draw pill-shaped inner bar with dynamic corner radius clamping
+        if (currentBarWidth > 2) {
+            const cornerRadius = Math.min(6, Math.floor(currentBarWidth / 2));
+            
+            this.timerBarFill.fillStyle(barColor, 1);
+            this.timerBarFill.fillRoundedRect(x, y, currentBarWidth, this.TIMER_BAR_HEIGHT, cornerRadius);
+        }
+    }
+
+
     private startRoundTimer() {
         if (this.timerEvent) {
             this.timerEvent.remove();
@@ -238,33 +271,6 @@ export class Game extends CustomScene {
         if (this.timerEvent) {
             this.timerEvent.remove();
             this.timerEvent = undefined;
-        }
-    }
-
-    private updateTimerBar() {
-        if (!this.timerEvent || this.timerEvent.paused) {
-            return;
-        }
-
-        const barWidth = this.scale.width - 40;
-        const x = 20;
-        const y = this.scale.height - 35;
-
-        const progress = Math.max(0, 1 - this.timerEvent.getProgress());
-        const currentBarWidth = Math.max(0, barWidth * progress);
-
-        this.timerBarFill.clear();
-
-        let barColor = COLORS.GREEN_ACCENT;
-        if (progress < 0.25) {
-            barColor = COLORS.RED_ACCENT;
-        } else if (progress < 0.5) {
-            barColor = COLORS.ACCENT_GOLD;
-        }
-
-        if (currentBarWidth > 0) {
-            this.timerBarFill.fillStyle(barColor, 1);
-            this.timerBarFill.fillRoundedRect(x, y, currentBarWidth, this.TIMER_BAR_HEIGHT, 6);
         }
     }
 
@@ -315,17 +321,13 @@ export class Game extends CustomScene {
     private spawnTile(row: number, col: number, x: number, y: number, animate: boolean = false) {
         const randomType = PhaserMath.RND.pick(this.TILE_TYPES);
 
-        // Container holding tile components
         const container = this.add.container(x, y);
         container.setSize(this.TILE_SIZE, this.TILE_SIZE);
 
         const borderGfx = this.add.graphics();
         const bgGfx = this.add.graphics();
 
-        // Draw tile background & border graphics
         this.drawTileGraphic(bgGfx, borderGfx, randomType, false);
-
-        // Render Fox Mascot Face on ALL tiles
         const foxGfx = this.renderFoxFace(0, 2);
 
         container.add([borderGfx, bgGfx, foxGfx]);
@@ -357,9 +359,6 @@ export class Game extends CustomScene {
         }
     }
 
-    /**
-     * Renders procedural vector graphics of the fox mascot face within the tile container bounds.
-     */
     private renderFoxFace(x: number, y: number): Phaser.GameObjects.Graphics {
         const gfx = this.add.graphics();
 
@@ -368,7 +367,6 @@ export class Game extends CustomScene {
         const COLOR_WHITE = 0xFFFFFF;
         const COLOR_INK = 0x1A1126;
 
-        // Helper to draw quadratic bezier curves safely across Phaser versions
         const drawQuadCurve = (
             startX: number, startY: number,
             controlX: number, controlY: number,
@@ -383,7 +381,6 @@ export class Game extends CustomScene {
             }
         };
 
-        // 1. EARS (BACKGROUND)
         gfx.fillStyle(COLOR_ORANGE, 1);
         gfx.fillTriangle(x - 22, y - 2, x - 28, y - 30, x - 6, y - 14);
         gfx.lineStyle(2, COLOR_ORANGE_DARK, 1);
@@ -400,12 +397,10 @@ export class Game extends CustomScene {
         gfx.fillStyle(COLOR_WHITE, 1);
         gfx.fillTriangle(x + 21, y - 5, x + 25, y - 24, x + 9, y - 14);
 
-        // 2. HEAD BASE (ORANGE DOME)
         gfx.fillStyle(COLOR_ORANGE, 1);
         gfx.fillCircle(x, y - 2, 23);
         gfx.fillEllipse(x, y + 2, 52, 34);
 
-        // 3. LOWER FACE & SPIKY CHEEKS (WHITE MUZZLE)
         gfx.fillStyle(COLOR_WHITE, 1);
         gfx.beginPath();
         gfx.moveTo(x - 26, y + 2);
@@ -426,12 +421,10 @@ export class Game extends CustomScene {
         gfx.closePath();
         gfx.fillPath();
 
-        // 4. EYEBROWS
         gfx.fillStyle(COLOR_WHITE, 1);
         gfx.fillRoundedRect(x - 13, y - 16, 8, 4, 2);
         gfx.fillRoundedRect(x + 5, y - 16, 8, 4, 2);
 
-        // 5. EYES
         gfx.fillStyle(COLOR_INK, 1);
         gfx.fillEllipse(x - 10, y - 4, 7, 10);
         gfx.fillEllipse(x + 10, y - 4, 7, 10);
@@ -440,7 +433,6 @@ export class Game extends CustomScene {
         gfx.fillCircle(x - 11, y - 6, 1.5);
         gfx.fillCircle(x + 9, y - 6, 1.5);
 
-        // 6. NOSE & MOUTH
         gfx.fillStyle(COLOR_INK, 1);
         gfx.fillTriangle(x - 3, y + 4, x + 3, y + 4, x, y + 7);
 
@@ -466,33 +458,27 @@ export class Game extends CustomScene {
         const half = this.TILE_SIZE / 2;
 
         if (isError) {
-            // Error Red Halo Glow
             borderGfx.fillStyle(COLORS.RED_ACCENT, 0.5);
             borderGfx.fillRoundedRect(-half - 6, -half - 6, this.TILE_SIZE + 12, this.TILE_SIZE + 12, 18);
             borderGfx.lineStyle(3, COLORS.RED_ACCENT, 1);
             borderGfx.strokeRoundedRect(-half - 6, -half - 6, this.TILE_SIZE + 12, this.TILE_SIZE + 12, 18);
         } else if (isSelected) {
-            // Glowing Highlight Selection Border
             borderGfx.fillStyle(COLORS.ACCENT_GOLD, 0.4);
             borderGfx.fillRoundedRect(-half - 5, -half - 5, this.TILE_SIZE + 10, this.TILE_SIZE + 10, 18);
             borderGfx.lineStyle(3, COLORS.ACCENT_GOLD, 1);
             borderGfx.strokeRoundedRect(-half - 5, -half - 5, this.TILE_SIZE + 10, this.TILE_SIZE + 10, 18);
         }
 
-        // Tile Drop Shadow
         bgGfx.fillStyle(0x000000, 0.35);
         bgGfx.fillRoundedRect(-half + 2, -half + 3, this.TILE_SIZE, this.TILE_SIZE, 14);
 
-        // Tile Base Fill
         const fillColor = isError ? COLORS.RED_ACCENT : tileTypeConfig.color;
         bgGfx.fillStyle(fillColor, 1);
         bgGfx.fillRoundedRect(-half, -half, this.TILE_SIZE, this.TILE_SIZE, 14);
 
-        // Tile Top Gloss Highlight
         bgGfx.fillStyle(0xFFFFFF, 0.22);
         bgGfx.fillRoundedRect(-half + 4, -half + 3, this.TILE_SIZE - 8, (this.TILE_SIZE - 6) / 2, { tl: 11, tr: 11, bl: 3, br: 3 });
 
-        // Outer Tile Rim
         const borderColor = isError ? 0xFF9999 : tileTypeConfig.border;
         bgGfx.lineStyle(2, borderColor, 0.85);
         bgGfx.strokeRoundedRect(-half, -half, this.TILE_SIZE, this.TILE_SIZE, 14);
@@ -535,7 +521,6 @@ export class Game extends CustomScene {
             this.showToastNotification('+100 COINS! 🎉', COLORS.ACCENT_GOLD);
             this.addCoins(100);
 
-            // Trigger Celebratory Coin Burst Particle Burst from matched tiles
             this.selectedTiles.forEach(tile => {
                 this.triggerMatchParticles(tile.gameObject.x, tile.gameObject.y);
             });
@@ -545,7 +530,6 @@ export class Game extends CustomScene {
                 this.currentRoundTimeMs - this.TIME_DECREMENT_MS
             );
 
-            // Victorious Bounce Scale Sequence
             this.selectedTiles.forEach(tile => {
                 this.tweens.add({
                     targets: tile.gameObject,
@@ -564,11 +548,9 @@ export class Game extends CustomScene {
             this.showToastNotification('NO MATCH! -1 LIFE 💔', COLORS.RED_ACCENT);
             this.loseLife();
 
-            // Flash screen red and shake camera for aggressive failure feedback
             this.cameras.main.flash(200, 231, 76, 60);
             this.cameras.main.shake(250, 0.008);
 
-            // Turn error tiles red with shake wobble
             this.selectedTiles.forEach(tile => {
                 const tileConfig = this.TILE_TYPES.find(t => t.id === tile.type)!;
                 this.drawTileGraphic(tile.bgGfx, tile.borderGfx, tileConfig, false, true);
@@ -594,9 +576,6 @@ export class Game extends CustomScene {
         }
     }
 
-    /**
-     * Floating Toast Banner Effect over the grid for immediate player feedback
-     */
     private showToastNotification(message: string, textColorHex: number) {
         const centerX = Math.floor(this.scale.width / 2);
         const toast = this.add.text(centerX, 230, message, {
@@ -622,9 +601,6 @@ export class Game extends CustomScene {
         });
     }
 
-    /**
-     * Spawns high-impact coin particles bursting from matched tiles upward into the score card
-     */
     private triggerMatchParticles(originX: number, originY: number) {
         for (let i = 0; i < 12; i++) {
             const angle = PhaserMath.FloatBetween(-Math.PI * 0.9, -Math.PI * 0.1);
@@ -647,9 +623,6 @@ export class Game extends CustomScene {
         }
     }
 
-    /**
-     * Physics update for match celebratory particles
-     */
     private updateParticles(dt: number) {
         this.particleGfx.clear();
 
@@ -674,14 +647,12 @@ export class Game extends CustomScene {
 
             const spinWidth = Math.max(2, p.size * Math.abs(Math.cos(p.rotation)));
 
-            // Draw coin shadow & base
             this.particleGfx.fillStyle(0x000000, p.alpha * 0.3);
             this.particleGfx.fillEllipse(p.x + 2, p.y + 2, spinWidth + 2, p.size + 2);
 
             this.particleGfx.fillStyle(p.color, p.alpha);
             this.particleGfx.fillEllipse(p.x, p.y, spinWidth, p.size);
 
-            // Draw highlight
             this.particleGfx.fillStyle(0xFFFFFF, p.alpha * 0.85);
             this.particleGfx.fillEllipse(p.x - spinWidth * 0.2, p.y - p.size * 0.2, Math.max(1, spinWidth * 0.35), p.size * 0.35);
         }
@@ -710,7 +681,7 @@ export class Game extends CustomScene {
 
     private triggerGameOver() {
         this.stopRoundTimer();
-        this.scene.start('GameOver', { score: this.coinsEarned });
+        this.transitionTo('GameOver', { score: this.coinsEarned }, 350);
     }
 
     private resetFullGrid() {
