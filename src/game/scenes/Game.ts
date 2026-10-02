@@ -94,13 +94,20 @@ export class Game extends CustomScene {
         this.camera = this.cameras.main;
         this.camera.setBackgroundColor(COLORS.DEEP_INK);
 
-        // Reset state on scene start
+        // Reset state completely on scene start
         this.lives = this.MAX_LIVES;
         this.coinsEarned = 0;
         this.displayedCoins = 0;
-        this.heartIcons = [];
         this.currentRoundTimeMs = this.INITIAL_TIME_MS;
         this.particles = [];
+        this.selectedTiles = [];
+        this.isProcessing = false;
+
+        // Clear out any old heart icon references
+        if (this.heartIcons && this.heartIcons.length > 0) {
+            this.heartIcons.forEach(h => h.destroy());
+        }
+        this.heartIcons = [];
 
         // Dedicated graphics object for particle feedback
         this.particleGfx = this.add.graphics();
@@ -192,7 +199,7 @@ export class Game extends CustomScene {
         livesCard.lineStyle(2, COLORS.RED_ACCENT, 0.8);
         livesCard.strokeRoundedRect(centerX + 15, 75, 120, 44, 12);
 
-        // Render Lives Hearts
+        // Render fresh Lives Hearts
         const heartStartX = centerX + 38;
         for (let i = 0; i < this.MAX_LIVES; i++) {
             const heart = this.add.text(heartStartX + (i * 28), 97, '❤️', {
@@ -232,7 +239,6 @@ export class Game extends CustomScene {
         const x = 20;
         const y = this.scale.height - 35;
 
-        // Strictly clamp progress between 0.0 and 1.0
         const rawProgress = 1 - this.timerEvent.getProgress();
         const progress = PhaserMath.Clamp(rawProgress, 0, 1);
         const currentBarWidth = Math.max(0, barWidth * progress);
@@ -244,15 +250,12 @@ export class Game extends CustomScene {
             barColor = COLORS.ACCENT_GOLD;
         }
 
-        // Draw pill-shaped inner bar with dynamic corner radius clamping
         if (currentBarWidth > 2) {
             const cornerRadius = Math.min(6, Math.floor(currentBarWidth / 2));
-            
             this.timerBarFill.fillStyle(barColor, 1);
             this.timerBarFill.fillRoundedRect(x, y, currentBarWidth, this.TIMER_BAR_HEIGHT, cornerRadius);
         }
     }
-
 
     private startRoundTimer() {
         if (this.timerEvent) {
@@ -662,8 +665,7 @@ export class Game extends CustomScene {
         if (this.lives <= 0) return;
 
         this.lives--;
-        const lostHeartIndex = this.lives;
-        const targetHeart = this.heartIcons[lostHeartIndex];
+        const targetHeart = this.heartIcons[this.lives];
 
         if (targetHeart) {
             this.tweens.add({
