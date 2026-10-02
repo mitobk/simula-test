@@ -13,7 +13,29 @@ const COLORS = {
     ACCENT_GOLD: 0xFFD700
 };
 
+interface CoinParticle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    gravity: number;
+    size: number;
+    rotation: number;
+    rotationSpeed: number;
+    alpha: number;
+    life: number;
+    maxLife: number;
+    color: number;
+}
+
 export class MainMenu extends CustomScene {
+    // Coin Fountain Particle System State
+    private coinParticles: CoinParticle[] = [];
+    private fountainGraphics!: Phaser.GameObjects.Graphics;
+    private fountainOriginX: number = 0;
+    private fountainOriginY: number = 0;
+    private readonly MAX_COINS = 80;
+
     constructor() {
         super('MainMenu');
     }
@@ -25,12 +47,20 @@ export class MainMenu extends CustomScene {
         const centerX = Math.floor(this.scale.width / 2);
         const centerY = Math.floor(this.scale.height / 2);
 
-        // --- Ambient Background Floating Particles ---
-        this.createAmbientParticles();
+        this.fountainOriginX = centerX;
+        this.fountainOriginY = centerY + 30;
+
+        // Dedicated graphics object for full-screen coin fountain particles
+        this.fountainGraphics = this.add.graphics();
+
+        // Pre-warm / bake particle system so large coins are flowing screen-wide instantly
+        this.prewarmCoinFountain();
 
         // --- Background Graphic Accent Glow ---
         const bgGfx = this.add.graphics();
-        bgGfx.fillStyle(COLORS.CARD_BG, 0.5);
+        bgGfx.fillStyle(COLORS.ORANGE, 0.2);
+        bgGfx.fillCircle(centerX, centerY - 60, 220);
+        bgGfx.fillStyle(COLORS.CARD_BG, 0.65);
         bgGfx.fillCircle(centerX, centerY - 60, 160);
 
         // Container to hold Logo + Title for joint float animation
@@ -83,6 +113,118 @@ export class MainMenu extends CustomScene {
         this.createPlayButton(centerX, Math.floor(centerY + 95));
     }
 
+    update(_time: number, delta: number) {
+        this.updateCoinFountain(delta / 1000);
+    }
+
+    /**
+     * Pre-warms the particle physics state so large coins are arcing screen-wide at scene start
+     */
+    private prewarmCoinFountain() {
+        const simulatedDt = 0.016; // Simulate 60fps
+        const prewarmFrames = 100;  // Pre-sim 1.6s
+
+        for (let frame = 0; frame < prewarmFrames; frame++) {
+            if (this.coinParticles.length < this.MAX_COINS && Math.random() < 0.85) {
+                this.spawnCoinParticle();
+            }
+
+            for (let i = this.coinParticles.length - 1; i >= 0; i--) {
+                const p = this.coinParticles[i];
+                p.life += simulatedDt;
+                if (p.life >= p.maxLife) {
+                    this.coinParticles.splice(i, 1);
+                    continue;
+                }
+                p.vy += p.gravity * simulatedDt;
+                p.x += p.vx * simulatedDt;
+                p.y += p.vy * simulatedDt;
+                p.rotation += p.rotationSpeed * simulatedDt;
+            }
+        }
+    }
+
+    /**
+     * Spawns large high-impact coin particles bursting across full screen width
+     */
+    private spawnCoinParticle() {
+        const angle = PhaserMath.FloatBetween(-Math.PI * 0.88, -Math.PI * 0.12);
+        const speed = PhaserMath.FloatBetween(450, 950);
+
+        const p: CoinParticle = {
+            x: this.fountainOriginX + PhaserMath.Between(-120, 120),
+            y: this.fountainOriginY + PhaserMath.Between(0, 80),
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            gravity: PhaserMath.FloatBetween(600, 1100),
+            size: PhaserMath.FloatBetween(22, 42),
+            rotation: PhaserMath.FloatBetween(0, Math.PI * 2),
+            rotationSpeed: PhaserMath.FloatBetween(-9, 9),
+            alpha: 1.0,
+            life: 0,
+            maxLife: PhaserMath.FloatBetween(1.5, 2.6),
+            color: PhaserMath.RND.pick([COLORS.ACCENT_GOLD, COLORS.ORANGE, 0xFFE082, 0xFFFFFF])
+        };
+
+        this.coinParticles.push(p);
+    }
+
+    /**
+     * Updates physics and draws detailed 3D spinning coins each frame
+     */
+    private updateCoinFountain(dt: number) {
+        this.fountainGraphics.clear();
+
+        while (this.coinParticles.length < this.MAX_COINS) {
+            this.spawnCoinParticle();
+        }
+
+        for (let i = this.coinParticles.length - 1; i >= 0; i--) {
+            const p = this.coinParticles[i];
+
+            p.life += dt;
+            if (p.life >= p.maxLife) {
+                this.coinParticles.splice(i, 1);
+                continue;
+            }
+
+            p.vy += p.gravity * dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.rotation += p.rotationSpeed * dt;
+
+            const lifeProgress = p.life / p.maxLife;
+            if (lifeProgress > 0.75) {
+                p.alpha = 1 - ((lifeProgress - 0.75) / 0.25);
+            }
+
+            const spinWidthScale = Math.abs(Math.cos(p.rotation));
+            const width = Math.max(4, p.size * spinWidthScale);
+            const height = p.size;
+
+            // Render Coin Shadow
+            this.fountainGraphics.fillStyle(0x000000, p.alpha * 0.3);
+            this.fountainGraphics.fillEllipse(p.x + 3, p.y + 4, width + 4, height + 4);
+
+            // Render Dark Outer Rim
+            this.fountainGraphics.fillStyle(0x381E08, p.alpha * 0.85);
+            this.fountainGraphics.fillEllipse(p.x, p.y + 1, width, height);
+
+            // Render Coin Base
+            this.fountainGraphics.fillStyle(p.color, p.alpha);
+            this.fountainGraphics.fillEllipse(p.x, p.y, width - 2, height - 2);
+
+            // Render Specular Highlight
+            this.fountainGraphics.fillStyle(0xFFFFFF, p.alpha * 0.9);
+            this.fountainGraphics.fillEllipse(
+                p.x - width * 0.22, 
+                p.y - height * 0.22, 
+                Math.max(2, width * 0.35), 
+                height * 0.35
+            );
+        }
+    }
+
     /**
      * Renders the Scrambly Egg & S-Curve Mark precisely matching the reference SVG vector shape.
      */
@@ -107,58 +249,25 @@ export class MainMenu extends CustomScene {
         const strokeWidth = 10 * scale;
         gfx.lineStyle(strokeWidth, COLORS.ORANGE, 1);
 
-        // 1. Outer Egg Outline
+        // Outer Egg Outline
         gfx.beginPath();
         gfx.moveTo(-12 * scale, -32 * scale);
-        // Top dome
         drawQuadCurve(-12 * scale, -32 * scale, 0 * scale, -44 * scale, 12 * scale, -32 * scale);
-        // Right side curve
         drawQuadCurve(12 * scale, -32 * scale, 32 * scale, -8 * scale, 24 * scale, 20 * scale);
-        // Bottom right to bottom curve
         drawQuadCurve(24 * scale, 20 * scale, 14 * scale, 38 * scale, -10 * scale, 32 * scale);
-        // Bottom left to top left curve
         drawQuadCurve(-10 * scale, 32 * scale, -32 * scale, 20 * scale, -24 * scale, -10 * scale);
         drawQuadCurve(-24 * scale, -10 * scale, -20 * scale, -26 * scale, -12 * scale, -32 * scale);
         gfx.strokePath();
 
-        // 2. Internal S-Swirl Branching Curve
+        // Internal S-Swirl Branching Curve
         gfx.beginPath();
-        gfx.moveTo(-10 * scale, 32 * scale); // Connects smoothly from bottom curve
+        gfx.moveTo(-10 * scale, 32 * scale);
         drawQuadCurve(-10 * scale, 32 * scale, 8 * scale, 26 * scale, 8 * scale, 10 * scale);
         drawQuadCurve(8 * scale, 10 * scale, 8 * scale, -8 * scale, -2 * scale, -12 * scale);
-        drawQuadCurve(-2 * scale, -12 * scale, -8 * scale, -16 * scale, 16 * scale, -26 * scale); // Sweeps back up to top right
+        drawQuadCurve(-2 * scale, -12 * scale, -8 * scale, -16 * scale, 16 * scale, -26 * scale);
         gfx.strokePath();
 
         return gfx;
-    }
-
-    /**
-     * Creates subtle floating background particles for menu dynamic feel
-     */
-    private createAmbientParticles() {
-        const particleColors = [COLORS.ORANGE, COLORS.PURPLE, COLORS.ACCENT_GOLD];
-
-        for (let i = 0; i < 14; i++) {
-            const pX = PhaserMath.Between(20, this.scale.width - 20);
-            const pY = PhaserMath.Between(30, this.scale.height - 30);
-            const size = PhaserMath.Between(3, 7);
-            const color = PhaserMath.RND.pick(particleColors);
-
-            const pGfx = this.add.graphics();
-            pGfx.fillStyle(color, PhaserMath.FloatBetween(0.25, 0.5));
-            pGfx.fillCircle(pX, pY, size);
-
-            this.tweens.add({
-                targets: pGfx,
-                y: pY - PhaserMath.Between(20, 45),
-                alpha: { from: 0.2, to: 0.7 },
-                duration: PhaserMath.Between(2500, 4500),
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut',
-                delay: PhaserMath.Between(0, 1500)
-            });
-        }
     }
 
     private createPlayButton(x: number, y: number) {
@@ -170,7 +279,6 @@ export class MainMenu extends CustomScene {
         const btnGfx = this.add.graphics();
         this.drawButtonState(btnGfx, btnWidth, btnHeight, false);
 
-        // High-res play icon & button text
         const playText = this.add.text(0, 0, '▶  PLAY NOW', {
             fontFamily: 'Arial Black',
             fontSize: '18px',
@@ -183,8 +291,8 @@ export class MainMenu extends CustomScene {
         buttonContainer.setSize(btnWidth, btnHeight);
         buttonContainer.setInteractive({ useHandCursor: true });
 
-        // Subtle pulsing scale tween on Play button
-        this.tweens.add({
+        // Pulsing animation
+        const pulseTween = this.tweens.add({
             targets: buttonContainer,
             scaleX: 1.03,
             scaleY: 1.03,
@@ -194,7 +302,6 @@ export class MainMenu extends CustomScene {
             ease: 'Sine.easeInOut'
         });
 
-        // Hover & Click Tweens
         buttonContainer.on('pointerover', () => {
             this.drawButtonState(btnGfx, btnWidth, btnHeight, true);
         });
@@ -204,15 +311,46 @@ export class MainMenu extends CustomScene {
         });
 
         buttonContainer.on('pointerdown', () => {
+            // Prevent multiple clicks
+            buttonContainer.disableInteractive();
+            pulseTween.stop();
+
+            // 1. Fire a massive explosion of 45 high-speed coins from the button position
+            for (let i = 0; i < 45; i++) {
+                const angle = PhaserMath.FloatBetween(-Math.PI * 0.95, -Math.PI * 0.05);
+                const speed = PhaserMath.FloatBetween(600, 1100);
+
+                this.coinParticles.push({
+                    x: x + PhaserMath.Between(-20, 20),
+                    y: y - 10,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    gravity: PhaserMath.FloatBetween(700, 1200),
+                    size: PhaserMath.FloatBetween(24, 46),
+                    rotation: PhaserMath.FloatBetween(0, Math.PI * 2),
+                    rotationSpeed: PhaserMath.FloatBetween(-12, 12),
+                    alpha: 1.0,
+                    life: 0,
+                    maxLife: PhaserMath.FloatBetween(1.2, 2.0),
+                    color: PhaserMath.RND.pick([COLORS.ACCENT_GOLD, COLORS.ORANGE, 0xFFE082, 0xFFFFFF])
+                });
+            }
+
+            // 2. Button click bounce tween
             this.tweens.add({
                 targets: buttonContainer,
-                scaleX: 0.94,
-                scaleY: 0.94,
-                duration: 80,
-                yoyo: true,
-                onComplete: () => {
-                    this.scene.start('Game');
-                }
+                scaleX: 0.92,
+                scaleY: 0.92,
+                duration: 90,
+                yoyo: true
+            });
+
+            // 3. Camera flash / punch effect for feedback
+            this.cameras.main.shake(150, 0.005);
+
+            // 4. Delay scene transition by 350ms so the user watches the burst fly across the screen
+            this.time.delayedCall(350, () => {
+                this.scene.start('Game');
             });
         });
     }

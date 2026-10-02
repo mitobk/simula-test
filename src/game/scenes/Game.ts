@@ -24,6 +24,21 @@ interface TileData {
     col: number;
 }
 
+interface ParticleEffect {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    gravity: number;
+    size: number;
+    rotation: number;
+    rotationSpeed: number;
+    alpha: number;
+    life: number;
+    maxLife: number;
+    color: number;
+}
+
 export class Game extends CustomScene {
     private camera!: Phaser.Cameras.Scene2D.Camera;
     
@@ -66,6 +81,10 @@ export class Game extends CustomScene {
     private timerBarFill!: Phaser.GameObjects.Graphics;
     private readonly TIMER_BAR_HEIGHT = 14;
 
+    // Procedural Particle System for Celebratory Effects
+    private particles: ParticleEffect[] = [];
+    private particleGfx!: Phaser.GameObjects.Graphics;
+
     constructor() {
         super('Game');
     }
@@ -81,6 +100,16 @@ export class Game extends CustomScene {
         this.displayedCoins = 0;
         this.heartIcons = [];
         this.currentRoundTimeMs = this.INITIAL_TIME_MS;
+        this.particles = [];
+
+        // Dedicated graphics object for particle feedback
+        this.particleGfx = this.add.graphics();
+
+        // Background Board Accent Glow
+        const centerX = Math.floor(this.scale.width / 2);
+        const gridGlow = this.add.graphics();
+        gridGlow.fillStyle(COLORS.CARD_BG, 0.45);
+        gridGlow.fillCircle(centerX, 380, 185);
 
         // Score, Title & Lives UI
         this.createScoreUI();
@@ -90,12 +119,11 @@ export class Game extends CustomScene {
 
         // Status / Prompt Text Box
         const statusY = 185;
-        const centerX = Math.floor(this.scale.width / 2);
 
         const statusBox = this.add.graphics();
-        statusBox.fillStyle(COLORS.CARD_BG, 0.7);
+        statusBox.fillStyle(COLORS.CARD_BG, 0.8);
         statusBox.fillRoundedRect(centerX - 140, statusY - 18, 280, 36, 12);
-        statusBox.lineStyle(1, COLORS.PURPLE, 0.6);
+        statusBox.lineStyle(1.5, COLORS.PURPLE, 0.8);
         statusBox.strokeRoundedRect(centerX - 140, statusY - 18, 280, 36, 12);
 
         this.statusText = this.add.text(
@@ -117,8 +145,9 @@ export class Game extends CustomScene {
         this.startRoundTimer();
     }
 
-    update() {
+    update(_time: number, delta: number) {
         this.updateTimerBar();
+        this.updateParticles(delta / 1000);
     }
 
     private createScoreUI() {
@@ -244,10 +273,11 @@ export class Game extends CustomScene {
 
         this.isProcessing = true;
         this.statusText.setText('Time Out! Lost 1 Life ⏰💔');
+        this.showToastNotification('TIME OUT! -1 LIFE 💔', COLORS.RED_ACCENT);
         this.loseLife();
 
         if (this.lives > 0) {
-            this.time.delayedCall(500, () => {
+            this.time.delayedCall(600, () => {
                 this.resetFullGrid();
             });
         } else {
@@ -320,8 +350,9 @@ export class Game extends CustomScene {
                 targets: container,
                 scaleX: 1,
                 scaleY: 1,
-                duration: 200,
-                delay: (row * 3 + col) * 30
+                duration: 220,
+                delay: (row * 3 + col) * 35,
+                ease: 'Back.easeOut'
             });
         }
     }
@@ -422,13 +453,26 @@ export class Game extends CustomScene {
         return gfx;
     }
 
-    private drawTileGraphic(bgGfx: Phaser.GameObjects.Graphics, borderGfx: Phaser.GameObjects.Graphics, tileTypeConfig: typeof this.TILE_TYPES[0], isSelected: boolean) {
+    private drawTileGraphic(
+        bgGfx: Phaser.GameObjects.Graphics, 
+        borderGfx: Phaser.GameObjects.Graphics, 
+        tileTypeConfig: typeof this.TILE_TYPES[0], 
+        isSelected: boolean,
+        isError: boolean = false
+    ) {
         bgGfx.clear();
         borderGfx.clear();
 
         const half = this.TILE_SIZE / 2;
 
-        if (isSelected) {
+        if (isError) {
+            // Error Red Halo Glow
+            borderGfx.fillStyle(COLORS.RED_ACCENT, 0.5);
+            borderGfx.fillRoundedRect(-half - 6, -half - 6, this.TILE_SIZE + 12, this.TILE_SIZE + 12, 18);
+            borderGfx.lineStyle(3, COLORS.RED_ACCENT, 1);
+            borderGfx.strokeRoundedRect(-half - 6, -half - 6, this.TILE_SIZE + 12, this.TILE_SIZE + 12, 18);
+        } else if (isSelected) {
+            // Glowing Highlight Selection Border
             borderGfx.fillStyle(COLORS.ACCENT_GOLD, 0.4);
             borderGfx.fillRoundedRect(-half - 5, -half - 5, this.TILE_SIZE + 10, this.TILE_SIZE + 10, 18);
             borderGfx.lineStyle(3, COLORS.ACCENT_GOLD, 1);
@@ -440,7 +484,8 @@ export class Game extends CustomScene {
         bgGfx.fillRoundedRect(-half + 2, -half + 3, this.TILE_SIZE, this.TILE_SIZE, 14);
 
         // Tile Base Fill
-        bgGfx.fillStyle(tileTypeConfig.color, 1);
+        const fillColor = isError ? COLORS.RED_ACCENT : tileTypeConfig.color;
+        bgGfx.fillStyle(fillColor, 1);
         bgGfx.fillRoundedRect(-half, -half, this.TILE_SIZE, this.TILE_SIZE, 14);
 
         // Tile Top Gloss Highlight
@@ -448,7 +493,8 @@ export class Game extends CustomScene {
         bgGfx.fillRoundedRect(-half + 4, -half + 3, this.TILE_SIZE - 8, (this.TILE_SIZE - 6) / 2, { tl: 11, tr: 11, bl: 3, br: 3 });
 
         // Outer Tile Rim
-        bgGfx.lineStyle(2, tileTypeConfig.border, 0.85);
+        const borderColor = isError ? 0xFF9999 : tileTypeConfig.border;
+        bgGfx.lineStyle(2, borderColor, 0.85);
         bgGfx.strokeRoundedRect(-half, -half, this.TILE_SIZE, this.TILE_SIZE, 14);
     }
 
@@ -464,9 +510,9 @@ export class Game extends CustomScene {
 
         this.tweens.add({
             targets: tile.gameObject,
-            scaleX: 1.08,
-            scaleY: 1.08,
-            duration: 100,
+            scaleX: 1.12,
+            scaleY: 1.12,
+            duration: 90,
             yoyo: true
         });
 
@@ -485,50 +531,159 @@ export class Game extends CustomScene {
         const isMatch = (first.type === second.type) && (second.type === third.type);
 
         if (isMatch) {
-            this.statusText.setText('Match Found! +100 Coins');
+            this.statusText.setText('Match Found! +100 Coins 🎉');
+            this.showToastNotification('+100 COINS! 🎉', COLORS.ACCENT_GOLD);
             this.addCoins(100);
+
+            // Trigger Celebratory Coin Burst Particle Burst from matched tiles
+            this.selectedTiles.forEach(tile => {
+                this.triggerMatchParticles(tile.gameObject.x, tile.gameObject.y);
+            });
 
             this.currentRoundTimeMs = Math.max(
                 this.MIN_TIME_MS, 
                 this.currentRoundTimeMs - this.TIME_DECREMENT_MS
             );
 
+            // Victorious Bounce Scale Sequence
             this.selectedTiles.forEach(tile => {
                 this.tweens.add({
                     targets: tile.gameObject,
-                    scaleX: 1.2,
-                    scaleY: 1.2,
-                    duration: 150,
+                    scaleX: 1.25,
+                    scaleY: 1.25,
+                    duration: 180,
                     yoyo: true
                 });
             });
 
-            this.time.delayedCall(450, () => {
+            this.time.delayedCall(500, () => {
                 this.resetFullGrid();
             });
         } else {
             this.statusText.setText('No Match! Lost 1 Life 💔');
+            this.showToastNotification('NO MATCH! -1 LIFE 💔', COLORS.RED_ACCENT);
             this.loseLife();
 
+            // Flash screen red and shake camera for aggressive failure feedback
+            this.cameras.main.flash(200, 231, 76, 60);
+            this.cameras.main.shake(250, 0.008);
+
+            // Turn error tiles red with shake wobble
             this.selectedTiles.forEach(tile => {
+                const tileConfig = this.TILE_TYPES.find(t => t.id === tile.type)!;
+                this.drawTileGraphic(tile.bgGfx, tile.borderGfx, tileConfig, false, true);
+
                 this.tweens.add({
                     targets: tile.gameObject,
-                    x: tile.gameObject.x + 8,
-                    duration: 50,
+                    x: tile.gameObject.x + 12,
+                    duration: 45,
                     yoyo: true,
-                    repeat: 2
+                    repeat: 3
                 });
             });
 
             if (this.lives > 0) {
-                this.time.delayedCall(500, () => {
+                this.time.delayedCall(600, () => {
                     this.resetFullGrid();
                 });
             } else {
-                this.time.delayedCall(800, () => {
+                this.time.delayedCall(850, () => {
                     this.triggerGameOver();
                 });
             }
+        }
+    }
+
+    /**
+     * Floating Toast Banner Effect over the grid for immediate player feedback
+     */
+    private showToastNotification(message: string, textColorHex: number) {
+        const centerX = Math.floor(this.scale.width / 2);
+        const toast = this.add.text(centerX, 230, message, {
+            fontFamily: 'Arial Black',
+            fontSize: '20px',
+            color: `#${textColorHex.toString(16)}`,
+            stroke: '#201338',
+            strokeThickness: 5,
+            padding: { top: 4, bottom: 4, left: 8, right: 8 },
+            resolution: 2
+        }).setOrigin(0.5);
+
+        toast.setScale(0.5);
+        this.tweens.add({
+            targets: toast,
+            scaleX: 1.15,
+            scaleY: 1.15,
+            y: 205,
+            alpha: { from: 1, to: 0 },
+            duration: 800,
+            ease: 'Power2',
+            onComplete: () => toast.destroy()
+        });
+    }
+
+    /**
+     * Spawns high-impact coin particles bursting from matched tiles upward into the score card
+     */
+    private triggerMatchParticles(originX: number, originY: number) {
+        for (let i = 0; i < 12; i++) {
+            const angle = PhaserMath.FloatBetween(-Math.PI * 0.9, -Math.PI * 0.1);
+            const speed = PhaserMath.FloatBetween(250, 600);
+
+            this.particles.push({
+                x: originX + PhaserMath.Between(-15, 15),
+                y: originY + PhaserMath.Between(-15, 15),
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                gravity: PhaserMath.FloatBetween(600, 950),
+                size: PhaserMath.FloatBetween(12, 24),
+                rotation: PhaserMath.FloatBetween(0, Math.PI * 2),
+                rotationSpeed: PhaserMath.FloatBetween(-10, 10),
+                alpha: 1.0,
+                life: 0,
+                maxLife: PhaserMath.FloatBetween(0.8, 1.4),
+                color: PhaserMath.RND.pick([COLORS.ACCENT_GOLD, COLORS.ORANGE, 0xFFE082, 0xFFFFFF])
+            });
+        }
+    }
+
+    /**
+     * Physics update for match celebratory particles
+     */
+    private updateParticles(dt: number) {
+        this.particleGfx.clear();
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+
+            p.life += dt;
+            if (p.life >= p.maxLife) {
+                this.particles.splice(i, 1);
+                continue;
+            }
+
+            p.vy += p.gravity * dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.rotation += p.rotationSpeed * dt;
+
+            const progress = p.life / p.maxLife;
+            if (progress > 0.6) {
+                p.alpha = 1 - ((progress - 0.6) / 0.4);
+            }
+
+            const spinWidth = Math.max(2, p.size * Math.abs(Math.cos(p.rotation)));
+
+            // Draw coin shadow & base
+            this.particleGfx.fillStyle(0x000000, p.alpha * 0.3);
+            this.particleGfx.fillEllipse(p.x + 2, p.y + 2, spinWidth + 2, p.size + 2);
+
+            this.particleGfx.fillStyle(p.color, p.alpha);
+            this.particleGfx.fillEllipse(p.x, p.y, spinWidth, p.size);
+
+            // Draw highlight
+            this.particleGfx.fillStyle(0xFFFFFF, p.alpha * 0.85);
+            this.particleGfx.fillEllipse(p.x - spinWidth * 0.2, p.y - p.size * 0.2, Math.max(1, spinWidth * 0.35), p.size * 0.35);
         }
     }
 
@@ -542,16 +697,14 @@ export class Game extends CustomScene {
         if (targetHeart) {
             this.tweens.add({
                 targets: targetHeart,
-                scaleX: 1.5,
-                scaleY: 1.5,
+                scaleX: 1.6,
+                scaleY: 1.6,
                 duration: 150,
                 yoyo: true,
                 onYoyo: () => {
                     targetHeart.setText('🩶');
                 }
             });
-
-            this.cameras.main.shake(200, 0.005);
         }
     }
 
@@ -573,7 +726,7 @@ export class Game extends CustomScene {
                         scaleX: 0,
                         scaleY: 0,
                         alpha: 0,
-                        duration: 200,
+                        duration: 180,
                         onComplete: () => {
                             tile.gameObject.destroy();
                             destroyedCount++;
@@ -626,8 +779,8 @@ export class Game extends CustomScene {
 
         this.tweens.add({
             targets: this.scoreText,
-            scaleX: 1.25,
-            scaleY: 1.25,
+            scaleX: 1.35,
+            scaleY: 1.35,
             duration: 150,
             yoyo: true
         });
