@@ -1,18 +1,48 @@
-# Phaser Webpack TypeScript Template
+# Scrambly Playable Ad – Simula Take-Home
 
-This is a Phaser 3 project template that uses webpack for bundling. It supports hot-reloading for quick development workflow, includes TypeScript support and scripts to generate production-ready builds.
+A polished, mobile-friendly web playable built for **Scrambly**, designed to connect casual gameplay, progression, and rewards into a short, engaging experience. 
 
-**[This Template is also available as a JavaScript version.](https://github.com/phaserjs/template-webpack)**
+Built with **Phaser 4** and **TypeScript**, packaged via Webpack.
 
-### Versions
+---
 
-This template has been updated for:
+## 🛠️ Tools & Credits
+* **Engine & Build Tools:** Phaser 4.0.0, TypeScript 5.4.5, Webpack 5.99.6
+* **Testing & Debugging:** Google Chrome DevTools (responsive emulation), Safari macOS, and Xcode Simulator.
+* **AI Coding Assistant:** Gemini Flash-Lite (leveraged for rapid code scaffolding, boilerplate setup, and structuring game logic loops).
+* **Developer:** Tomás Bruckner
 
-- [Phaser 3.90.0](https://github.com/phaserjs/phaser)
+---
+
+## 💡 Development Process & Contributions
+
+* **Role & Contributions:** Acting as Technical Architect and Director, I designed the project structure and guided development block by block using iterative prompts, verifying functionality, code readability, and keeping the AI aligned. I also functioned as Game Designer (defining game flow, mechanics, and branding) and QA/Tester, executing the full development cycle within a strict 4-hour time-box.
+* **Why Phaser Was Chosen:** Phaser was specifically selected for its robust, built-in architecture capable of handling crucial playable ad requirements out of the box—such as automatic tab visibility change handling (`changevisibility` / pause state management) and unified input handling for both touch and mouse clicks via standardized pointer events.
+* **Lightweight Bundle Decision (< 5 MB):** To keep the bundle well under the 5 MB limit, ensure a lightning-fast first load, and maintain stable performance, I chose to utilize procedural Phaser graphics rather than loading external heavy images that could impact initial load times or FPS.
+* **UI Polish Trade-off:** While improvements to the base game UI were explored, limitations in time and the AI tool during final adjustments led to keeping selected emojis for certain UI elements. This deliberate choice avoided introducing layout or state bugs during the final retouch phase.
+
+---
+
+## 📱 Browser & Device Testing Notes
+
+* **Tested Environments:**
+  * **Google Chrome (Desktop & DevTools):** Used for primary code development, rapid debugging, console monitoring, and responsive layout mode emulation across various mobile aspect ratios.
+  * **Safari (macOS):** Used for desktop browser compatibility and layout checks on Apple's WebKit engine.
+  * **Xcode Simulator (iOS Mobile Safari):** Used for native mobile testing and verification of touch interactions on simulated hardware, specifically testing **iPhone 17 Pro Max** (large form factor / tall portrait viewports) and **iPhone SE (2nd generation)** (compact form factor / smaller screen constraints).
+* **Known Limitations / Untested Behavior:** 
+  * Testing was limited to browser emulation and iOS Simulator environments due to the rapid 4-hour time constraint. Physical Android hardware testing was not performed directly, though standard touch events and responsive container scaling handle standard viewports smoothly.
+  * **iOS Safari UI Quirk:** On iOS Safari, the browser's dynamic bottom address/navigation bar can hide or auto-collapse depending on scrolling or touch gestures, which occasionally causes the bottom UI elements or time bar to not be persistently visible at all times until the view adjusts.
+
+---
+
+## Versions
+
+This project uses:
+- [Phaser 4.0.0](https://github.com/phaserjs/phaser)
 - [Webpack 5.99.6](https://github.com/webpack/webpack)
 - [TypeScript 5.4.5](https://github.com/microsoft/TypeScript)
 
-![screenshot](screenshot.png)
+---
 
 ## Requirements
 
@@ -23,144 +53,51 @@ This template has been updated for:
 | Command | Description |
 |---------|-------------|
 | `npm install` | Install project dependencies |
-| `npm run dev` | Launch a development web server |
+| `npm run dev` | Launch a local development web server |
 | `npm run build` | Create a production build in the `dist` folder |
-| `npm run dev-nolog` | Launch a development web server without sending anonymous data (see "About log.js" below) |
-| `npm run build-nolog` | Create a production build in the `dist` folder without sending anonymous data (see "About log.js" below) |
 
-## Writing Code
+## Running Locally
 
-After cloning the repo, run `npm install` from your project directory. Then, you can start the local development server by running `npm run dev`.
+1. Clone or extract the project repository.
+2. Open a terminal in the project root and run `npm install`.
+3. Start the local development server by running `npm run dev`.
+4. Open your browser and navigate to `http://localhost:8080`.
 
-The local development server runs on `http://localhost:8080` by default. Please see the webpack documentation if you wish to change this, or add SSL support.
+---
 
-Once the server is running you can edit any of the files in the `src` folder. Webpack will automatically recompile your code and then reload the browser.
+## Technical & Handoff Notes
+
+* **ZIP Structure:** The production build is compiled directly into the `dist` folder, with `index.html` positioned correctly at the root for submission.
+* **Size Constraint:** Fully optimized to stay well under the **5 MB** production limit.
+* **Runtime Independence:** Runs completely offline from a static HTTP server with no external requests, database calls, logins, or API keys required during runtime.
+* **Mobile & Touch Support:** Fully responsive for both touch and mouse interactions, optimized for mobile screen dimensions (tested on portrait viewports like 320×568 and 390×844). Page scrolling is disabled to prevent interference with gameplay.
+* **Visibility API:** Automatically pauses game timers and loops when the browser tab is hidden, resuming seamlessly upon focus without time skips.
+* **CTA Integration:** Clicking the final Call to Action button triggers a local confirmation message (*“CTA clicked — demo only”*), logs the event to the console, and safely remains in-app without redirecting.
+* **Review-Friendly Restart:** Fully cleans up game states, input listeners, and timers on reset to prevent memory leaks or duplicate triggers.
+
+---
 
 ## Template Project Structure
 
-We have provided a default project structure to get you started. This is as follows:
-
 | Path                         | Description                                                |
 |------------------------------|------------------------------------------------------------|
-| `public/index.html`          | A basic HTML page to contain the game.                     |
+| `dist/`                      | Production-ready build output (`index.html` at root).      |
 | `public/assets`              | Game sprites, audio, etc. Served directly at runtime.      |
-| `public/style.css`           | Global layout styles.                                      |
 | `src/main.ts`                | Application bootstrap.                                     |
-| `src/game`                   | Folder containing the game code.                           |
-| `src/game/main.ts`           | Game entry point: configures and starts the game.          |
-| `src/game/scenes`            | Folder with all Phaser game scenes.                        |
+| `src/game/`                  | Core game logic, scenes, and mechanics.                    |
 
-
-## Handling Assets
-
-Webpack supports loading assets via JavaScript module `import` statements.
-
-This template provides support for both embedding assets and also loading them from a static folder. To embed an asset, you can import it at the top of the JavaScript file you are using it in:
-
-```js
-import logoImg from './assets/logo.png'
-```
-
-To load static files such as audio files, videos, etc place them into the `public/assets` folder. Then you can use this path in the Loader calls within Phaser:
-
-```js
-preload ()
-{
-    //  This is an example of an imported bundled image.
-    //  Remember to import it at the top of this file
-    this.load.image('logo', logoImg);
-
-    //  This is an example of loading a static image
-    //  from the public/assets folder:
-    this.load.image('background', 'assets/bg.png');
-}
-```
-
-When you issue the `npm run build` command, all static assets are automatically copied to the `dist/assets` folder.
+---
 
 ## Deploying to Production
 
-After you run the `npm run build` command, your code will be built into a single bundle and saved to the `dist` folder, along with any other assets your project imported, or stored in the public assets folder.
+After running `npm run build`, the entire bundled output will be saved inside the `dist` folder. To host or test the production version, serve the contents of `dist` via any static file server (e.g., `npx serve dist`).
 
-In order to deploy your game, you will need to upload *all* of the contents of the `dist` folder to a public facing web server.
-
-## Customizing the Template
-
-### Babel
-
-You can write modern ES6+ JavaScript and Babel will transpile it to a version of JavaScript that you want your project to support. The targeted browsers are set in the `.babelrc` file and the default currently targets all browsers with total usage over "0.25%" but excludes IE11 and Opera Mini.
-
- ```
-"browsers": [
-  ">0.25%",
-  "not ie 11",
-  "not op_mini all"
-]
- ```
-
-### Webpack
-
-If you want to customize your build, such as adding a new webpack loader or plugin (i.e. for loading CSS or fonts), you can modify the `webpack/config.*.js` file for cross-project changes, or you can modify and/or create new configuration files and target them in specific npm tasks inside of `package.json`. Please see the [Webpack documentation](https://webpack.js.org/) for more information.
-
-## About log.js
-
-If you inspect our node scripts you will see there is a file called `log.js`. This file makes a single silent API call to a domain called `gryzor.co`. This domain is owned by Phaser Studio Inc. The domain name is a homage to one of our favorite retro games.
-
-We send the following 3 pieces of data to this API: The name of the template being used (vue, react, etc). If the build was 'dev' or 'prod' and finally the version of Phaser being used.
-
-At no point is any personal data collected or sent. We don't know about your project files, device, browser or anything else. Feel free to inspect the `log.js` file to confirm this.
-
-Why do we do this? Because being open source means we have no visible metrics about which of our templates are being used. We work hard to maintain a large and diverse set of templates for Phaser developers and this is our small anonymous way to determine if that work is actually paying off, or not. In short, it helps us ensure we're building the tools for you.
-
-However, if you don't want to send any data, you can use these commands instead:
-
-Dev:
-
-```bash
-npm run dev-nolog
-```
-
-Build:
-
-```bash
-npm run build-nolog
-```
-
-Or, to disable the log entirely, simply delete the file `log.js` and remove the call to it in the `scripts` section of `package.json`:
-
-Before:
-
-```json
-"scripts": {
-    "dev": "node log.js dev & dev-template-script",
-    "build": "node log.js build & build-template-script"
-},
-```
-
-After:
-
-```json
-"scripts": {
-    "dev": "dev-template-script",
-    "build": "build-template-script"
-},
-```
-
-Either of these will stop `log.js` from running. If you do decide to do this, please could you at least join our Discord and tell us which template you're using! Or send us a quick email. Either will be super-helpful, thank you.
+---
 
 ## Join the Phaser Community!
 
-We love to see what developers like you create with Phaser! It really motivates us to keep improving. So please join our community and show-off your work 😄
-
-**Visit:** The [Phaser website](https://phaser.io) and follow on [Phaser Twitter](https://twitter.com/phaser_)<br />
-**Play:** Some of the amazing games [#madewithphaser](https://twitter.com/search?q=%23madewithphaser&src=typed_query&f=live)<br />
-**Learn:** [API Docs](https://newdocs.phaser.io), [Support Forum](https://phaser.discourse.group/) and [StackOverflow](https://stackoverflow.com/questions/tagged/phaser-framework)<br />
-**Discord:** Join us on [Discord](https://discord.gg/phaser)<br />
+**Visit:** The [Phaser website](https://phaser.io)<br />
 **Code:** 2000+ [Examples](https://labs.phaser.io)<br />
-**Read:** The [Phaser World](https://phaser.io/community/newsletter) Newsletter<br />
+**Discord:** Join us on [Discord](https://discord.gg/phaser)<br />
 
-Created by [Phaser Studio](mailto:support@phaser.io). Powered by coffee, anime, pixels and love.
-
-The Phaser logo and characters are &copy; 2011 - 2025 Phaser Studio Inc.
-
-All rights reserved.
+Created by [Phaser Studio](mailto:support@phaser.io). Adapted for the Simula Playable Take-Home.

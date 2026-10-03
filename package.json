@@ -3,11 +3,10 @@
   "version": "1.3.0",
   "main": "src/main.js",
   "scripts": {
-    "dev": "node log.js dev & webpack-dev-server --config webpack/config.dev.js --open",
-    "build": "node log.js build & webpack --config webpack/config.prod.js",
-    "dev-nolog": "webpack-dev-server --config webpack/config.dev.js --open",
-    "build-nolog": "webpack --config webpack/config.prod.js"
+    "dev": "webpack-dev-server --config webpack/config.dev.js --open",
+    "build": "webpack --config webpack/config.prod.js"
   },
+
   "repository": {
     "type": "git",
     "url": "git+https://github.com/phaserjs/template-webpack.git"
